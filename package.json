@@ -1,0 +1,44 @@
+{
+  "name": "pkistudiomcp",
+  "version": "0.0.1",
+  "description": "Local MCP server exposing PkiStudioJS ASN.1 Core API tools.",
+  "type": "module",
+  "bin": {
+    "pkistudiomcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "npm run build && node --check dist/index.js",
+    "prepare": "npm run build",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts"
+  },
+  "keywords": [
+    "asn1",
+    "der",
+    "ber",
+    "pem",
+    "pki",
+    "mcp",
+    "model-context-protocol"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "pkistudiojs": "github:pkistudio/pkistudiojs",
+    "zod": "^4.4.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
