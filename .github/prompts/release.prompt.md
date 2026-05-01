@@ -35,6 +35,7 @@ The release version may be omitted or set to `TBD` when development should proce
 - Use existing repository patterns and keep changes focused on the requested issue.
 - Use non-interactive git commands.
 - Never print npm tokens, GitHub tokens, or secret values.
+- Prefer non-interactive npm authentication through `NODE_AUTH_TOKEN` or `NPM_TOKEN`. Do not run `npm login` during the release workflow unless the user explicitly asks for an interactive login.
 
 ## Inputs
 
@@ -51,6 +52,7 @@ Derive these from the invocation when possible:
 - npm package name: `@pkistudio/pkistudiomcp`
 - npm package access: public
 - npm publish command: `npm publish --access public`
+- npm non-interactive auth: use `NODE_AUTH_TOKEN` or `NPM_TOKEN` with a temporary npm user config.
 - Runtime command after publish: `npx -y @pkistudio/pkistudiomcp`
 - Main verification command: `npm run check`
 - Publish dry run command: `npm pack --dry-run`
@@ -143,35 +145,54 @@ Keep the package name as `@pkistudio/pkistudiomcp`. Keep the CLI bin name as `pk
     - If version references were deferred, create a focused version bump commit on `main` or on a release-prep branch/PR if the user wants review before publication.
 
 11. Publish to npm
-    - Confirm npm authentication without exposing secrets:
+      - Prefer token-based authentication so the release does not require repeated browser-based 2FA approval. If neither `NODE_AUTH_TOKEN` nor `NPM_TOKEN` is available, stop and ask the user whether to provide an npm automation token, use GitHub Actions, or proceed with interactive `npm login`.
+      - If running in GitHub Actions or another CI environment, use `NODE_AUTH_TOKEN` with `actions/setup-node` configured for `https://registry.npmjs.org`. Prefer an npm automation token stored as `NPM_TOKEN`, or npm trusted publishing if it has been configured for this package.
+      - For local token-based publication, create a temporary npm user config outside the repository, use it for all npm auth and publish commands, then remove it before the final response:
 
-      ```sh
-      npm whoami
-      npm access get status @pkistudio/pkistudiomcp
-      ```
+         ```sh
+         NPM_AUTH_TOKEN="${NODE_AUTH_TOKEN:-${NPM_TOKEN:-}}"
+         if [[ -z "$NPM_AUTH_TOKEN" ]]; then
+            echo "Set NODE_AUTH_TOKEN or NPM_TOKEN before publishing."
+            exit 1
+         fi
 
-    - If running in GitHub Actions or another CI environment, ensure `NPM_TOKEN` is available and used as `NODE_AUTH_TOKEN` with `actions/setup-node` configured for `https://registry.npmjs.org`.
-    - Run final local checks immediately before publishing:
+         NPM_USERCONFIG="$(mktemp)"
+         trap 'rm -f "$NPM_USERCONFIG"' EXIT
+         printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_AUTH_TOKEN" > "$NPM_USERCONFIG"
 
-      ```sh
-      npm run check
-      npm pack --dry-run
-      ```
+         npm whoami --userconfig "$NPM_USERCONFIG"
+         npm access get status @pkistudio/pkistudiomcp --userconfig "$NPM_USERCONFIG"
+         ```
 
-    - Publish the package publicly:
+      - Run final local checks immediately before publishing:
 
-      ```sh
-      npm publish --access public
-      ```
+         ```sh
+         npm run check
+         npm pack --dry-run
+         ```
 
-    - Verify npm registry state:
+      - Publish the package publicly:
 
-      ```sh
-      npm view @pkistudio/pkistudiomcp version dist-tags.latest --prefer-online
-      npm view @pkistudio/pkistudiomcp@X.Y.Z name version dist-tags.latest --prefer-online
-      ```
+         ```sh
+         npm publish --access public --userconfig "$NPM_USERCONFIG"
+         ```
 
-    - If `npm publish` reports that the version already exists, do not retry with changed package contents. Stop and report the conflict.
+      - Remove the temporary npm user config immediately after publish and before the final response:
+
+         ```sh
+         rm -f "$NPM_USERCONFIG"
+         trap - EXIT
+         unset NPM_AUTH_TOKEN NPM_USERCONFIG
+         ```
+
+      - Verify npm registry state:
+
+         ```sh
+         npm view @pkistudio/pkistudiomcp version dist-tags.latest --prefer-online
+         npm view @pkistudio/pkistudiomcp@X.Y.Z name version dist-tags.latest --prefer-online
+         ```
+
+      - If `npm publish` reports that the version already exists, do not retry with changed package contents. Stop and report the conflict.
 
 12. Tag and GitHub Release
     - Create an annotated tag `vX.Y.Z` on the released `main` commit.
