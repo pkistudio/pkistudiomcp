@@ -1,6 +1,6 @@
 {
   "name": "pkistudiomcp",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Local MCP server exposing PkiStudioJS ASN.1 Core API tools.",
   "type": "module",
   "bin": {
@@ -12,7 +12,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && chmod 755 dist/index.js",
     "check": "npm run build && node --check dist/index.js",
     "prepare": "npm run build",
     "start": "node dist/index.js",
