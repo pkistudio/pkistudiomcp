@@ -2,8 +2,8 @@
   "servers": {
     "pkistudio": {
       "type": "stdio",
-      "command": "node",
-      "args": ["/workspaces/pkistudiomcp/dist/index.js"]
+      "command": "npx",
+      "args": ["-y", "pkistudiomcp"]
     }
   }
 }
