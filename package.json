@@ -1,8 +1,16 @@
 {
-  "name": "pkistudiomcp",
-  "version": "0.0.2",
+  "name": "@pkistudio/pkistudiomcp",
+  "version": "0.0.3",
   "description": "Local MCP server exposing PkiStudioJS ASN.1 Core API tools.",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pkistudio/pkistudiomcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/pkistudio/pkistudiomcp/issues"
+  },
+  "homepage": "https://github.com/pkistudio/pkistudiomcp#readme",
   "bin": {
     "pkistudiomcp": "dist/index.js"
   },
@@ -11,6 +19,9 @@
     "README.md",
     "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json && chmod 755 dist/index.js",
     "check": "npm run build && node --check dist/index.js",

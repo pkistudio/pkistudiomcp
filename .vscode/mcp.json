@@ -3,7 +3,7 @@
     "pkistudio": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "pkistudiomcp"]
+      "args": ["-y", "@pkistudio/pkistudiomcp"]
     }
   }
 }

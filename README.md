@@ -1,6 +1,6 @@
-# pkistudiomcp
+# @pkistudio/pkistudiomcp
 
-`pkistudiomcp` is a local stdio MCP server that exposes the PkiStudioJS Core API as MCP tools for ASN.1 inspection.
+`@pkistudio/pkistudiomcp` is a local stdio MCP server that exposes the PkiStudioJS Core API as MCP tools for ASN.1 inspection.
 
 The package currently depends on PkiStudioJS directly from GitHub:
 
@@ -63,10 +63,16 @@ After the package is published to npm:
 	"mcpServers": {
 		"pkistudio": {
 			"command": "npx",
-			"args": ["pkistudiomcp"]
+			"args": ["@pkistudio/pkistudiomcp"]
 		}
 	}
 }
+```
+
+Publish the scoped package publicly:
+
+```sh
+npm publish --access public
 ```
 
 Until npm publication, GitHub installation can be tested with npm-compatible clients that accept GitHub package specs:
