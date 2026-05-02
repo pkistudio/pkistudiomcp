@@ -1,0 +1,60 @@
+name: Feature request
+description: Suggest an improvement or new capability for PkiStudioMCP
+title: "[Feature]: "
+labels:
+  - enhancement
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve PkiStudioMCP. Please share the MCP workflow, ASN.1 data shape, or client behavior you want the server to support.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe the user need, limitation, or workflow friction.
+      placeholder: I want to...
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like to happen?
+      description: Describe the MCP tool behavior, parser support, output format, package workflow, or other change you are requesting.
+      placeholder: Add a way to...
+    validations:
+      required: true
+  - type: textarea
+    id: examples
+    attributes:
+      label: Example input or output
+      description: If relevant, include a small DER/PEM/HEX/base64 sample, expected MCP tool arguments or output, or links to public test data. Do not include private keys, passwords, or confidential certificate data.
+      render: text
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of PkiStudioMCP does this affect most?
+      options:
+        - MCP tools
+        - ASN.1 parsing
+        - Tool schemas or output format
+        - OID resolution
+        - npm package or installation
+        - Documentation
+        - Release or deployment
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: MCP client and environment
+      description: Optional, but helpful for client, Node.js, npx, or stdio-related requests.
+      placeholder: VS Code MCP, Claude Desktop, Node 20 on macOS, npx on Linux, etc.
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Add anything else that would help evaluate or implement the request.
