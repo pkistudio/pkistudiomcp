@@ -7,7 +7,7 @@ The package currently depends on PkiStudioJS directly from GitHub:
 ```json
 {
 	"dependencies": {
-		"pkistudiojs": "github:pkistudio/pkistudiojs"
+		"pkistudiojs": "github:pkistudio/pkistudiojs#v0.2.2"
 	}
 }
 ```

@@ -27,7 +27,7 @@ const asn1InputSchema = {
 
 const server = new McpServer({
   name: "@pkistudio/pkistudiomcp",
-  version: "0.0.6",
+  version: "0.0.7",
 });
 
 server.registerTool(
