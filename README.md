@@ -7,7 +7,7 @@ The package currently depends on PkiStudioJS directly from GitHub:
 ```json
 {
 	"dependencies": {
-		"pkistudiojs": "github:pkistudio/pkistudiojs#v0.2.2"
+		"pkistudiojs": "github:pkistudio/pkistudiojs#v0.2.5"
 	}
 }
 ```
@@ -17,6 +17,11 @@ The package currently depends on PkiStudioJS directly from GitHub:
 - `parse_asn1`: Parse DER, BER, PEM, HEX, base64, or headerless PEM input and return a JSON ASN.1 tree.
 - `summarize_asn1`: Return a compact summary with tag counts, discovered OIDs, and top-level nodes.
 - `describe_node`: Describe one parsed ASN.1 node by node id.
+- `extract_asn1_node`: Extract one parsed ASN.1 node and its subtree as DER bytes.
+- `normalize_asn1_input`: Decode supported ASN.1 input and return round-trip re-encoded bytes.
+- `asn1_node_value`: Return a node's decoded display value and raw value bytes.
+- `encode_oid`: Encode an OID string into ASN.1 OBJECT IDENTIFIER value bytes.
+- `decode_oid_value`: Decode ASN.1 OBJECT IDENTIFIER value bytes into dotted OID text.
 - `resolve_oid`: Resolve an OID using the OID names bundled with PkiStudioJS.
 
 Input is string-based. Use `format: "auto"` to let PkiStudioJS detect the input, or provide one of `der`, `ber`, `pem`, `base64`, `headerless-pem`, or `hex`.
