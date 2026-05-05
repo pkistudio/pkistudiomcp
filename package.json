@@ -1,6 +1,6 @@
 {
   "name": "@pkistudio/pkistudiomcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Local MCP server exposing PkiStudioJS ASN.1 and PKI key material tools.",
   "type": "module",
   "repository": {
@@ -42,6 +42,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "asn1js": "^3.0.10",
+    "pkijs": "^3.4.0",
     "pkistudiojs": "github:pkistudio/pkistudiojs#v0.2.5",
     "zod": "^4.4.1"
   },

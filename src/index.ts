@@ -3,7 +3,15 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
-import { certificateMatchesKey, recognizeKeyMaterial, verifyKeyPair } from "./key-material.js";
+import {
+  certificateMatchesKey,
+  createCsr,
+  createSelfSignedCertificate,
+  readPkcs12,
+  recognizeKeyMaterial,
+  verifyKeyPair,
+  writePkcs12,
+} from "./key-material.js";
 import {
   decodeOidValue,
   describeNode,
@@ -37,10 +45,22 @@ const asn1InputSchema = {
 };
 
 const outputEncodingSchema = z.enum(["hex", "base64"]).default("hex").describe("Output encoding for DER or value bytes.");
+const hashAlgorithmSchema = z.enum(["SHA-256", "SHA-384", "SHA-512"]).default("SHA-256").describe("Hash algorithm for signing.");
+const certificateKeyUsageSchema = z.enum([
+  "digitalSignature",
+  "nonRepudiation",
+  "keyEncipherment",
+  "dataEncipherment",
+  "keyAgreement",
+  "keyCertSign",
+  "cRLSign",
+  "encipherOnly",
+  "decipherOnly",
+]);
 
 const server = new McpServer({
   name: "@pkistudio/pkistudiomcp",
-  version: "0.1.0",
+  version: "0.2.0",
 });
 
 server.registerTool(
@@ -210,6 +230,80 @@ server.registerTool(
     },
   },
   async (input) => jsonToolResult(certificateMatchesKey(input)),
+);
+
+server.registerTool(
+  "create_csr",
+  {
+    title: "Create CSR",
+    description: "Create a PKCS#10 certificate signing request from a PKCS#8 private key, SPKI public key, and subject DN.",
+    inputSchema: {
+      privateKey: z.string().min(1).describe("PKCS#8 private key as DER, PEM, HEX, or base64 text."),
+      privateKeyFormat: optionalInputFormatSchema,
+      publicKey: z.string().min(1).describe("SPKI public key as DER, PEM, HEX, or base64 text."),
+      publicKeyFormat: optionalInputFormatSchema,
+      subjectDn: z.string().min(1).describe("Subject DN, for example CN=example.com, O=Example, C=JP."),
+      hashAlgorithm: hashAlgorithmSchema,
+      encoding: outputEncodingSchema,
+    },
+  },
+  async (input) => jsonToolResult(createCsr(input)),
+);
+
+server.registerTool(
+  "create_self_signed_certificate",
+  {
+    title: "Create Self-Signed Certificate",
+    description: "Create a self-signed X.509 certificate from a PKCS#8 private key, SPKI public key, and subject DN.",
+    inputSchema: {
+      privateKey: z.string().min(1).describe("PKCS#8 private key as DER, PEM, HEX, or base64 text."),
+      privateKeyFormat: optionalInputFormatSchema,
+      publicKey: z.string().min(1).describe("SPKI public key as DER, PEM, HEX, or base64 text."),
+      publicKeyFormat: optionalInputFormatSchema,
+      subjectDn: z.string().min(1).describe("Subject DN, for example CN=example.com, O=Example, C=JP."),
+      hashAlgorithm: hashAlgorithmSchema,
+      validityDays: z.number().int().min(1).max(36500).default(365).describe("Certificate validity period in days."),
+      keyUsages: z.array(certificateKeyUsageSchema).default(["digitalSignature", "keyCertSign", "cRLSign"]),
+      encoding: outputEncodingSchema,
+    },
+  },
+  async (input) => jsonToolResult(createSelfSignedCertificate(input)),
+);
+
+server.registerTool(
+  "read_pkcs12",
+  {
+    title: "Read PKCS#12",
+    description: "Read PKCS#12/PFX data and return contained private keys, public keys, and certificates.",
+    inputSchema: {
+      data: z.string().min(1).describe("PKCS#12/PFX bytes as DER, HEX, or base64 text."),
+      password: z.string().describe("PKCS#12 password."),
+      format: inputFormatSchema,
+      sourceName: z.string().optional().describe("Optional source filename to include in output metadata."),
+      encoding: outputEncodingSchema,
+    },
+  },
+  async (input) => jsonToolResult(readPkcs12(input)),
+);
+
+server.registerTool(
+  "write_pkcs12",
+  {
+    title: "Write PKCS#12",
+    description: "Create PKCS#12/PFX data from one or more private keys and optional X.509 certificates.",
+    inputSchema: {
+      keys: z.array(z.object({
+        label: z.string().optional().describe("Optional friendly name for the key bag."),
+        privateKey: z.string().min(1).describe("PKCS#8 private key as DER, PEM, HEX, or base64 text."),
+        privateKeyFormat: optionalInputFormatSchema,
+        certificate: z.string().min(1).optional().describe("Optional X.509 certificate as DER, PEM, HEX, or base64 text."),
+        certificateFormat: optionalInputFormatSchema,
+      })).min(1),
+      password: z.string().describe("Password to protect the PKCS#12 output."),
+      encoding: outputEncodingSchema,
+    },
+  },
+  async (input) => jsonToolResult(writePkcs12(input)),
 );
 
 async function main(): Promise<void> {

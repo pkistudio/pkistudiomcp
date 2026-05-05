@@ -26,6 +26,10 @@ The package currently depends on PkiStudioJS directly from GitHub and uses key m
 - `recognize_key_material`: Recognize a PKCS#8 private key or SPKI public key and report its key family, label, and capabilities.
 - `verify_key_pair`: Verify that a PKCS#8 private key matches an SPKI public key by signing and verifying sample data.
 - `certificate_matches_key`: Check whether an X.509 certificate public key matches supplied public key bytes or a PKCS#8 private key.
+- `create_csr`: Create a PKCS#10 certificate signing request from a private key, public key, and subject DN.
+- `create_self_signed_certificate`: Create a self-signed X.509 certificate from a private key, public key, and subject DN.
+- `read_pkcs12`: Read PKCS#12/PFX data and return contained private keys, public keys, and certificates.
+- `write_pkcs12`: Create PKCS#12/PFX data from private keys and optional certificates.
 
 Input is string-based. Use `format: "auto"` to let PkiStudioJS detect the input, or provide one of `der`, `ber`, `pem`, `base64`, `headerless-pem`, or `hex`.
 

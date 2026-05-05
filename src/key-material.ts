@@ -1,5 +1,7 @@
 import * as asn1js from "asn1js";
+import { AttributeTypeAndValue, BasicConstraints, Certificate, CertificationRequest, Extension, RelativeDistinguishedNames, Time } from "pkijs";
 
+import { readPkcs12Keys, writePkcs12Keys } from "./pkcs12.js";
 import { decodeInputBytes, encodeOutputBytes } from "./pkistudio.js";
 
 type InputFormat = "auto" | "der" | "ber" | "pem" | "base64" | "headerless-pem" | "hex";
@@ -39,6 +41,60 @@ type CertificateMatchesKeyInput = {
   publicKeyFormat?: InputFormat;
   encoding?: OutputEncoding;
 };
+
+type CreateCsrInput = {
+  privateKey: string;
+  privateKeyFormat?: InputFormat;
+  publicKey: string;
+  publicKeyFormat?: InputFormat;
+  subjectDn: string;
+  hashAlgorithm?: "SHA-256" | "SHA-384" | "SHA-512";
+  encoding?: OutputEncoding;
+};
+
+type CreateSelfSignedCertificateInput = CreateCsrInput & {
+  validityDays?: number;
+  keyUsages?: string[];
+};
+
+type ReadPkcs12Input = {
+  data: string;
+  password: string;
+  format?: InputFormat;
+  sourceName?: string;
+  encoding?: OutputEncoding;
+};
+
+type WritePkcs12Input = {
+  keys: Array<{
+    label?: string;
+    privateKey: string;
+    privateKeyFormat?: InputFormat;
+    certificate?: string;
+    certificateFormat?: InputFormat;
+  }>;
+  password: string;
+  encoding?: OutputEncoding;
+};
+
+type CertificateKeyUsage = {
+  id: string;
+  label: string;
+  bit: number;
+  defaultChecked?: boolean;
+};
+
+const CERTIFICATE_KEY_USAGES: CertificateKeyUsage[] = [
+  { id: "digitalSignature", label: "digitalSignature", bit: 0 },
+  { id: "nonRepudiation", label: "nonRepudiation", bit: 1 },
+  { id: "keyEncipherment", label: "keyEncipherment", bit: 2 },
+  { id: "dataEncipherment", label: "dataEncipherment", bit: 3 },
+  { id: "keyAgreement", label: "keyAgreement", bit: 4 },
+  { id: "keyCertSign", label: "certSign", bit: 5, defaultChecked: true },
+  { id: "cRLSign", label: "crlSign", bit: 6, defaultChecked: true },
+  { id: "encipherOnly", label: "encipherOnly", bit: 7 },
+  { id: "decipherOnly", label: "decipherOnly", bit: 8 },
+];
 
 export function recognizeKeyMaterial(input: RecognizeInput) {
   const decoded = decodeInputBytes(input.data, input.format);
@@ -98,6 +154,135 @@ export async function certificateMatchesKey(input: CertificateMatchesKeyInput) {
       length: certificatePublicKeyDer.length,
       data: encodeOutputBytes(certificatePublicKeyDer, input.encoding),
     },
+  };
+}
+
+export async function createCsr(input: CreateCsrInput) {
+  const privateKey = decodeInputBytes(input.privateKey, input.privateKeyFormat);
+  const publicKey = decodeInputBytes(input.publicKey, input.publicKeyFormat);
+  const hashAlgorithm = input.hashAlgorithm ?? "SHA-256";
+  const info = recognizeMaterial({ privateKeyDer: privateKey.bytes, publicKeyDer: publicKey.bytes });
+  if (info.family !== "RSA" && info.family !== "EC") throw new Error(`${info.label} is not supported for CSR signing yet.`);
+
+  const subjectBytes = createSubjectDn(input.subjectDn);
+  const subject = parseSubjectDnBytes(subjectBytes);
+  const [signingPrivateKey, signingPublicKey] = await Promise.all([
+    importSigningPrivateKey(privateKey.bytes, info, hashAlgorithm),
+    importSigningPublicKey(publicKey.bytes, info, hashAlgorithm),
+  ]);
+
+  const request = new CertificationRequest();
+  request.subject = subject;
+  await request.subjectPublicKeyInfo.importKey(signingPublicKey);
+  request.attributes = [];
+  await request.sign(signingPrivateKey, hashAlgorithm);
+
+  const bytes = new Uint8Array(request.toSchema(true).toBER(false));
+  return {
+    subjectDn: input.subjectDn,
+    hashAlgorithm,
+    keyInfo: info,
+    length: bytes.length,
+    encoding: input.encoding ?? "hex",
+    data: encodeOutputBytes(bytes, input.encoding),
+  };
+}
+
+export async function createSelfSignedCertificate(input: CreateSelfSignedCertificateInput) {
+  const privateKey = decodeInputBytes(input.privateKey, input.privateKeyFormat);
+  const publicKey = decodeInputBytes(input.publicKey, input.publicKeyFormat);
+  const hashAlgorithm = input.hashAlgorithm ?? "SHA-256";
+  const validityDays = input.validityDays ?? 365;
+  const keyUsages = input.keyUsages ?? ["digitalSignature", "keyCertSign", "cRLSign"];
+  const info = recognizeMaterial({ privateKeyDer: privateKey.bytes, publicKeyDer: publicKey.bytes });
+  if (info.family !== "RSA" && info.family !== "EC") throw new Error(`${info.label} is not supported for certificate signing yet.`);
+
+  const subjectBytes = createSubjectDn(input.subjectDn);
+  const subject = parseSubjectDnBytes(subjectBytes);
+  const notBefore = new Date();
+  const notAfter = new Date(notBefore.getTime() + validityDays * 24 * 60 * 60 * 1000);
+  const [signingPrivateKey, signingPublicKey] = await Promise.all([
+    importSigningPrivateKey(privateKey.bytes, info, hashAlgorithm),
+    importSigningPublicKey(publicKey.bytes, info, hashAlgorithm),
+  ]);
+
+  const certificate = new Certificate();
+  certificate.version = 2;
+  certificate.serialNumber = new asn1js.Integer({ valueHex: toArrayBuffer(createCertificateSerialNumber()) });
+  certificate.issuer = subject;
+  certificate.subject = subject;
+  certificate.notBefore = new Time({ type: 0, value: notBefore });
+  certificate.notAfter = new Time({ type: 0, value: notAfter });
+  await certificate.subjectPublicKeyInfo.importKey(signingPublicKey);
+  certificate.extensions = createSelfSignedCertificateExtensions(keyUsages);
+  await certificate.sign(signingPrivateKey, hashAlgorithm);
+
+  const bytes = new Uint8Array(certificate.toSchema(true).toBER(false));
+  return {
+    subjectDn: input.subjectDn,
+    hashAlgorithm,
+    validityDays,
+    keyUsages,
+    notBefore: notBefore.toISOString(),
+    notAfter: notAfter.toISOString(),
+    keyInfo: info,
+    length: bytes.length,
+    encoding: input.encoding ?? "hex",
+    data: encodeOutputBytes(bytes, input.encoding),
+  };
+}
+
+export async function readPkcs12(input: ReadPkcs12Input) {
+  const decoded = decodeInputBytes(input.data, input.format);
+  const keys = await readPkcs12Keys(decoded.bytes, input.password, { sourceName: input.sourceName });
+  const encoding = input.encoding ?? "hex";
+
+  return {
+    sourceFormat: decoded.format,
+    keyCount: keys.length,
+    keys: keys.map((key) => ({
+      id: key.id,
+      label: key.label,
+      sourceName: key.sourceName,
+      keyInfo: recognizeMaterial({ privateKeyDer: key.privateKeyDer, publicKeyDer: key.publicKeyDer }),
+      privateKey: {
+        encoding,
+        length: key.privateKeyDer.length,
+        data: encodeOutputBytes(key.privateKeyDer, encoding),
+      },
+      publicKey: key.publicKeyDer
+        ? {
+            encoding,
+            length: key.publicKeyDer.length,
+            data: encodeOutputBytes(key.publicKeyDer, encoding),
+          }
+        : undefined,
+      certificate: key.certificateDer
+        ? {
+            encoding,
+            length: key.certificateDer.length,
+            data: encodeOutputBytes(key.certificateDer, encoding),
+          }
+        : undefined,
+    })),
+  };
+}
+
+export async function writePkcs12(input: WritePkcs12Input) {
+  const bytes = await writePkcs12Keys(
+    input.keys.map((key) => ({
+      label: key.label,
+      privateKeyDer: decodeInputBytes(key.privateKey, key.privateKeyFormat).bytes,
+      certificateDer: key.certificate ? decodeInputBytes(key.certificate, key.certificateFormat).bytes : undefined,
+    })),
+    input.password,
+  );
+
+  return {
+    keyCount: input.keys.length,
+    length: bytes.length,
+    encoding: input.encoding ?? "hex",
+    data: encodeOutputBytes(bytes, input.encoding),
   };
 }
 
@@ -171,6 +356,178 @@ function getKeyPairCheckAlgorithm(info: RecognizedKeyInfo): {
   }
 
   throw new Error(`${info.label} cannot be checked against a public key.`);
+}
+
+async function importSigningPrivateKey(bytes: Uint8Array, info: RecognizedKeyInfo, hashAlgorithm: string): Promise<CryptoKey> {
+  return crypto.subtle.importKey("pkcs8", toArrayBuffer(bytes), getSigningKeyAlgorithm(info, hashAlgorithm), false, ["sign"]);
+}
+
+async function importSigningPublicKey(bytes: Uint8Array, info: RecognizedKeyInfo, hashAlgorithm: string): Promise<CryptoKey> {
+  return crypto.subtle.importKey("spki", toArrayBuffer(bytes), getSigningKeyAlgorithm(info, hashAlgorithm), true, ["verify"]);
+}
+
+function getSigningKeyAlgorithm(info: RecognizedKeyInfo, hashAlgorithm: string): RsaHashedImportParams | EcKeyImportParams {
+  if (info.family === "RSA") return { name: "RSASSA-PKCS1-v1_5", hash: hashAlgorithm };
+  if (info.family === "EC" && info.namedCurve) return { name: "ECDSA", namedCurve: info.namedCurve };
+  throw new Error(`${info.label} is not supported for CSR signing yet.`);
+}
+
+function createSelfSignedCertificateExtensions(keyUsages: string[]): Extension[] {
+  const knownUsages = new Set(CERTIFICATE_KEY_USAGES.map((usage) => usage.id));
+  for (const usage of keyUsages) {
+    if (!knownUsages.has(usage)) throw new Error(`Unsupported certificate key usage: ${usage}`);
+  }
+
+  const selected = new Set(keyUsages);
+  const basicConstraints = new BasicConstraints({ cA: selected.has("keyCertSign") });
+  const keyUsage = createKeyUsageBitString(selected);
+
+  return [
+    new Extension({
+      extnID: "2.5.29.19",
+      critical: selected.has("keyCertSign"),
+      extnValue: basicConstraints.toSchema().toBER(false),
+      parsedValue: basicConstraints,
+    }),
+    new Extension({
+      extnID: "2.5.29.15",
+      critical: true,
+      extnValue: keyUsage.toBER(false),
+      parsedValue: keyUsage,
+    }),
+  ];
+}
+
+function createKeyUsageBitString(selected: Set<string>): asn1js.BitString {
+  const highestBit = CERTIFICATE_KEY_USAGES.reduce((highest, usage) => selected.has(usage.id) ? Math.max(highest, usage.bit) : highest, 0);
+  const value = new Uint8Array(Math.floor(highestBit / 8) + 1);
+  for (const usage of CERTIFICATE_KEY_USAGES) {
+    if (!selected.has(usage.id)) continue;
+    value[Math.floor(usage.bit / 8)] |= 0x80 >> (usage.bit % 8);
+  }
+  return new asn1js.BitString({ valueHex: toArrayBuffer(value) });
+}
+
+function createCertificateSerialNumber(): Uint8Array {
+  const serial = new Uint8Array(16);
+  crypto.getRandomValues(serial);
+  serial[0] &= 0x7f;
+  if (serial.every((byte) => byte === 0)) serial[15] = 1;
+  return serial;
+}
+
+function createSubjectDn(subjectDn: string): Uint8Array {
+  const subject = new RelativeDistinguishedNames({ typesAndValues: parseSubjectDn(subjectDn) });
+  return new Uint8Array(subject.toSchema().toBER(false));
+}
+
+function parseSubjectDnBytes(bytes: Uint8Array): RelativeDistinguishedNames {
+  const asn1 = asn1js.fromBER(toArrayBuffer(bytes));
+  if (asn1.offset === -1) throw new Error("Invalid SubjectDN DER.");
+  if (asn1.offset !== bytes.byteLength) throw new Error("SubjectDN DER has trailing data.");
+  return new RelativeDistinguishedNames({ schema: asn1.result });
+}
+
+function parseSubjectDn(subjectDn: string): AttributeTypeAndValue[] {
+  const parts = splitSubjectDn(subjectDn);
+  if (parts.length === 0) throw new Error("subjectDN is required.");
+
+  return [...parts].reverse().map((part) => {
+    const separator = findUnescaped(part, "=");
+    if (separator <= 0) throw new Error(`Invalid subjectDN part: ${part}`);
+
+    const name = unescapeDnValue(part.slice(0, separator).trim());
+    const value = unescapeDnValue(part.slice(separator + 1).trim());
+    if (!name || !value) throw new Error(`Invalid subjectDN part: ${part}`);
+
+    return new AttributeTypeAndValue({ type: subjectOid(name), value: subjectValue(name, value) });
+  });
+}
+
+function splitSubjectDn(subjectDn: string): string[] {
+  const trimmed = subjectDn.trim();
+  if (!trimmed) return [];
+  if (trimmed.startsWith("/")) return splitEscaped(trimmed.slice(1), "/");
+  return splitEscaped(trimmed, ",");
+}
+
+function splitEscaped(value: string, separator: string): string[] {
+  const parts: string[] = [];
+  let current = "";
+  let escaped = false;
+
+  for (const character of value) {
+    if (escaped) {
+      current += `\\${character}`;
+      escaped = false;
+      continue;
+    }
+
+    if (character === "\\") {
+      escaped = true;
+      continue;
+    }
+
+    if (character === separator) {
+      if (current.trim()) parts.push(current.trim());
+      current = "";
+      continue;
+    }
+
+    current += character;
+  }
+
+  if (escaped) current += "\\";
+  if (current.trim()) parts.push(current.trim());
+  return parts;
+}
+
+function findUnescaped(value: string, needle: string): number {
+  let escaped = false;
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (character === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (character === needle) return index;
+  }
+  return -1;
+}
+
+function unescapeDnValue(value: string): string {
+  return value.replace(/\\([,=\\/])/g, "$1");
+}
+
+function subjectOid(name: string): string {
+  const oids: Record<string, string> = {
+    C: "2.5.4.6",
+    ST: "2.5.4.8",
+    S: "2.5.4.8",
+    L: "2.5.4.7",
+    O: "2.5.4.10",
+    OU: "2.5.4.11",
+    CN: "2.5.4.3",
+    DC: "0.9.2342.19200300.100.1.25",
+    SN: "2.5.4.5",
+    SERIALNUMBER: "2.5.4.5",
+    EMAILADDRESS: "1.2.840.113549.1.9.1",
+  };
+
+  const oid = oids[name.toUpperCase()] ?? (/^\d+(\.\d+)+$/.test(name) ? name : undefined);
+  if (!oid) throw new Error(`Unsupported subjectDN attribute: ${name}`);
+  return oid;
+}
+
+function subjectValue(name: string, value: string): asn1js.Utf8String | asn1js.PrintableString | asn1js.IA5String {
+  const normalized = name.toUpperCase();
+  if (normalized === "C") return new asn1js.PrintableString({ value });
+  if (normalized === "EMAILADDRESS" || normalized === "DC") return new asn1js.IA5String({ value });
+  return new asn1js.Utf8String({ value });
 }
 
 function getCertificatePublicKeyDer(certificateDer: Uint8Array): Uint8Array {
