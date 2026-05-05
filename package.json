@@ -1,7 +1,7 @@
 {
   "name": "@pkistudio/pkistudiomcp",
-  "version": "0.0.9",
-  "description": "Local MCP server exposing PkiStudioJS ASN.1 Core API tools.",
+  "version": "0.1.0",
+  "description": "Local MCP server exposing PkiStudioJS ASN.1 and PKI key material tools.",
   "type": "module",
   "repository": {
     "type": "git",
@@ -41,6 +41,7 @@
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "asn1js": "^3.0.10",
     "pkistudiojs": "github:pkistudio/pkistudiojs#v0.2.5",
     "zod": "^4.4.1"
   },

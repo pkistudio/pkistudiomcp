@@ -233,6 +233,14 @@ export function resolveOid(oid: string) {
   };
 }
 
+export function decodeInputBytes(data: string, format?: InputFormat) {
+  return pkistudio.decodeInput(data, { format });
+}
+
+export function encodeOutputBytes(bytes: Uint8Array, encoding: OutputEncoding = "hex"): string {
+  return encodeBytes(bytes, encoding);
+}
+
 function withOidNames<T extends ParseOptions>(options: T): T & { oidNames: Record<string, string> } {
   return {
     ...options,

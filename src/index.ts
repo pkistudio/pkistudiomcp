@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
+import { certificateMatchesKey, recognizeKeyMaterial, verifyKeyPair } from "./key-material.js";
 import {
   decodeOidValue,
   describeNode,
@@ -21,6 +22,11 @@ const inputFormatSchema = z
   .default("auto")
   .describe("Input format. Use auto to detect PEM, HEX, base64, DER, or BER.");
 
+const optionalInputFormatSchema = z
+  .enum(["auto", "der", "ber", "pem", "base64", "headerless-pem", "hex"])
+  .optional()
+  .describe("Input format. Defaults to auto detection.");
+
 const asn1InputSchema = {
   data: z.string().min(1).describe("ASN.1 input as PEM, HEX, base64, DER base64, or text."),
   format: inputFormatSchema,
@@ -34,7 +40,7 @@ const outputEncodingSchema = z.enum(["hex", "base64"]).default("hex").describe("
 
 const server = new McpServer({
   name: "@pkistudio/pkistudiomcp",
-  version: "0.0.9",
+  version: "0.1.0",
 });
 
 server.registerTool(
@@ -157,6 +163,53 @@ server.registerTool(
     },
   },
   async ({ oid }) => jsonToolResult(resolveOid(oid)),
+);
+
+server.registerTool(
+  "recognize_key_material",
+  {
+    title: "Recognize Key Material",
+    description: "Recognize a PKCS#8 private key or SPKI public key and return its key family, label, and capabilities.",
+    inputSchema: {
+      data: z.string().min(1).describe("PKCS#8 private key or SPKI public key as DER, PEM, HEX, or base64 text."),
+      kind: z.enum(["private", "public"]).describe("Whether data is a PKCS#8 private key or SPKI public key."),
+      format: inputFormatSchema,
+    },
+  },
+  async (input) => jsonToolResult(recognizeKeyMaterial(input)),
+);
+
+server.registerTool(
+  "verify_key_pair",
+  {
+    title: "Verify Key Pair",
+    description: "Verify that a PKCS#8 private key matches an SPKI public key by signing and verifying sample data.",
+    inputSchema: {
+      privateKey: z.string().min(1).describe("PKCS#8 private key as DER, PEM, HEX, or base64 text."),
+      privateKeyFormat: optionalInputFormatSchema,
+      publicKey: z.string().min(1).describe("SPKI public key as DER, PEM, HEX, or base64 text."),
+      publicKeyFormat: optionalInputFormatSchema,
+    },
+  },
+  async (input) => jsonToolResult(verifyKeyPair(input)),
+);
+
+server.registerTool(
+  "certificate_matches_key",
+  {
+    title: "Certificate Matches Key",
+    description: "Check whether an X.509 certificate public key matches supplied public key bytes or a PKCS#8 private key.",
+    inputSchema: {
+      certificate: z.string().min(1).describe("X.509 certificate as DER, PEM, HEX, or base64 text."),
+      certificateFormat: optionalInputFormatSchema,
+      privateKey: z.string().min(1).optional().describe("PKCS#8 private key as DER, PEM, HEX, or base64 text."),
+      privateKeyFormat: optionalInputFormatSchema,
+      publicKey: z.string().min(1).optional().describe("SPKI public key as DER, PEM, HEX, or base64 text."),
+      publicKeyFormat: optionalInputFormatSchema,
+      encoding: outputEncodingSchema,
+    },
+  },
+  async (input) => jsonToolResult(certificateMatchesKey(input)),
 );
 
 async function main(): Promise<void> {

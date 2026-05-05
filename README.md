@@ -1,8 +1,8 @@
 # @pkistudio/pkistudiomcp
 
-`@pkistudio/pkistudiomcp` is a local stdio MCP server that exposes the PkiStudioJS Core API as MCP tools for ASN.1 inspection.
+`@pkistudio/pkistudiomcp` is a local stdio MCP server that exposes PkiStudioJS ASN.1 tools and PKI key material helpers as MCP tools.
 
-The package currently depends on PkiStudioJS directly from GitHub:
+The package currently depends on PkiStudioJS directly from GitHub and uses key material recognition logic adapted from the Private Key Gadgets core API:
 
 ```json
 {
@@ -23,6 +23,9 @@ The package currently depends on PkiStudioJS directly from GitHub:
 - `encode_oid`: Encode an OID string into ASN.1 OBJECT IDENTIFIER value bytes.
 - `decode_oid_value`: Decode ASN.1 OBJECT IDENTIFIER value bytes into dotted OID text.
 - `resolve_oid`: Resolve an OID using the OID names bundled with PkiStudioJS.
+- `recognize_key_material`: Recognize a PKCS#8 private key or SPKI public key and report its key family, label, and capabilities.
+- `verify_key_pair`: Verify that a PKCS#8 private key matches an SPKI public key by signing and verifying sample data.
+- `certificate_matches_key`: Check whether an X.509 certificate public key matches supplied public key bytes or a PKCS#8 private key.
 
 Input is string-based. Use `format: "auto"` to let PkiStudioJS detect the input, or provide one of `der`, `ber`, `pem`, `base64`, `headerless-pem`, or `hex`.
 
