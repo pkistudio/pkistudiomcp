@@ -7,6 +7,8 @@ import {
   certificateMatchesKey,
   createCsr,
   createSelfSignedCertificate,
+  generateKeyPair,
+  listSupportedKeyAlgorithms,
   readPkcs12,
   recognizeKeyMaterial,
   verifyKeyPair,
@@ -46,6 +48,27 @@ const asn1InputSchema = {
 
 const outputEncodingSchema = z.enum(["hex", "base64"]).default("hex").describe("Output encoding for DER or value bytes.");
 const hashAlgorithmSchema = z.enum(["SHA-256", "SHA-384", "SHA-512"]).default("SHA-256").describe("Hash algorithm for signing.");
+const keyAlgorithmSchema = z.enum([
+  "rsassa-pkcs1-v1_5-2048",
+  "rsassa-pkcs1-v1_5-3072",
+  "rsassa-pkcs1-v1_5-4096",
+  "rsa-pss-2048",
+  "rsa-pss-3072",
+  "rsa-pss-4096",
+  "rsa-oaep-2048",
+  "rsa-oaep-3072",
+  "rsa-oaep-4096",
+  "ecdsa-p-256",
+  "ecdsa-p-384",
+  "ecdsa-p-521",
+  "ecdh-p-256",
+  "ecdh-p-384",
+  "ecdh-p-521",
+  "ed25519",
+  "ed448",
+  "x25519",
+  "x448",
+]);
 const certificateKeyUsageSchema = z.enum([
   "digitalSignature",
   "nonRepudiation",
@@ -60,7 +83,7 @@ const certificateKeyUsageSchema = z.enum([
 
 const server = new McpServer({
   name: "@pkistudio/pkistudiomcp",
-  version: "0.2.0",
+  version: "0.2.1",
 });
 
 server.registerTool(
@@ -197,6 +220,30 @@ server.registerTool(
     },
   },
   async (input) => jsonToolResult(recognizeKeyMaterial(input)),
+);
+
+server.registerTool(
+  "list_supported_key_algorithms",
+  {
+    title: "List Supported Key Algorithms",
+    description: "List WebCrypto key pair algorithms supported by this runtime for key generation.",
+    inputSchema: {},
+  },
+  async () => jsonToolResult(await listSupportedKeyAlgorithms()),
+);
+
+server.registerTool(
+  "generate_key_pair",
+  {
+    title: "Generate Key Pair",
+    description: "Generate a key pair and return the private key as PKCS#8 DER and public key as SPKI DER.",
+    inputSchema: {
+      algorithm: keyAlgorithmSchema.describe("Algorithm id from list_supported_key_algorithms, for example rsassa-pkcs1-v1_5-2048 or ecdsa-p-256."),
+      label: z.string().optional().describe("Optional friendly label to include in the response."),
+      encoding: outputEncodingSchema,
+    },
+  },
+  async (input) => jsonToolResult(await generateKeyPair(input)),
 );
 
 server.registerTool(

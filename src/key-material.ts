@@ -16,6 +16,14 @@ type RecognizedKeyInfo = {
   namedCurve?: string;
 };
 
+type KeyAlgorithmCandidate = {
+  id: string;
+  canonicalId: string;
+  canonicalLabel: string;
+  algorithm: AlgorithmIdentifier | RsaHashedKeyGenParams | EcKeyGenParams;
+  usages: KeyUsage[];
+};
+
 type MaterialInput = {
   data: string;
   format?: InputFormat;
@@ -23,6 +31,12 @@ type MaterialInput = {
 
 type RecognizeInput = MaterialInput & {
   kind: "private" | "public";
+};
+
+type GenerateKeyPairInput = {
+  algorithm: string;
+  label?: string;
+  encoding?: OutputEncoding;
 };
 
 type VerifyKeyPairInput = {
@@ -95,6 +109,68 @@ const CERTIFICATE_KEY_USAGES: CertificateKeyUsage[] = [
   { id: "encipherOnly", label: "encipherOnly", bit: 7 },
   { id: "decipherOnly", label: "decipherOnly", bit: 8 },
 ];
+
+const KEY_ALGORITHM_CANDIDATES: KeyAlgorithmCandidate[] = [
+  ...createRsaCandidates("RSASSA-PKCS1-v1_5", "SHA-256", ["sign", "verify"]),
+  ...createRsaCandidates("RSA-PSS", "SHA-256", ["sign", "verify"]),
+  ...createRsaCandidates("RSA-OAEP", "SHA-256", ["encrypt", "decrypt"]),
+  ...createNamedCurveCandidates("ECDSA", ["P-256", "P-384", "P-521"], ["sign", "verify"]),
+  ...createNamedCurveCandidates("ECDH", ["P-256", "P-384", "P-521"], ["deriveBits"]),
+  ...createNamedCurveCandidates("Ed25519", ["Ed25519"], ["sign", "verify"]),
+  ...createNamedCurveCandidates("Ed448", ["Ed448"], ["sign", "verify"]),
+  ...createNamedCurveCandidates("X25519", ["X25519"], ["deriveBits"]),
+  ...createNamedCurveCandidates("X448", ["X448"], ["deriveBits"]),
+];
+
+export async function listSupportedKeyAlgorithms() {
+  const results = await Promise.all(
+    KEY_ALGORITHM_CANDIDATES.map(async (candidate) => ({
+      candidate,
+      supported: await isKeyAlgorithmSupported(candidate),
+    })),
+  );
+
+  const uniqueSupportedAlgorithms = new Map<string, KeyAlgorithmCandidate>();
+  for (const result of results) {
+    if (!result.supported || uniqueSupportedAlgorithms.has(result.candidate.canonicalId)) continue;
+    uniqueSupportedAlgorithms.set(result.candidate.canonicalId, result.candidate);
+  }
+
+  return {
+    algorithms: [...uniqueSupportedAlgorithms.values()].map(describeKeyAlgorithmCandidate),
+  };
+}
+
+export async function generateKeyPair(input: GenerateKeyPairInput) {
+  const candidate = getGenerationOptions(input.algorithm);
+  const generated = await crypto.subtle.generateKey(candidate.algorithm, true, candidate.usages);
+  if (!isCryptoKeyPair(generated)) throw new Error("The runtime did not return a key pair.");
+
+  const [privateKeyBuffer, publicKeyBuffer] = await Promise.all([
+    crypto.subtle.exportKey("pkcs8", generated.privateKey),
+    crypto.subtle.exportKey("spki", generated.publicKey),
+  ]);
+  const privateKeyDer = new Uint8Array(privateKeyBuffer);
+  const publicKeyDer = new Uint8Array(publicKeyBuffer);
+  const keyInfo = recognizeMaterial({ privateKeyDer, publicKeyDer });
+  const encoding = input.encoding ?? "hex";
+
+  return {
+    algorithm: describeKeyAlgorithmCandidate(candidate),
+    label: input.label || keyInfo.label,
+    keyInfo,
+    privateKey: {
+      encoding,
+      length: privateKeyDer.length,
+      data: encodeOutputBytes(privateKeyDer, encoding),
+    },
+    publicKey: {
+      encoding,
+      length: publicKeyDer.length,
+      data: encodeOutputBytes(publicKeyDer, encoding),
+    },
+  };
+}
 
 export function recognizeKeyMaterial(input: RecognizeInput) {
   const decoded = decodeInputBytes(input.data, input.format);
@@ -289,6 +365,60 @@ export async function writePkcs12(input: WritePkcs12Input) {
 function recognizeMaterial(material: { privateKeyDer?: Uint8Array; publicKeyDer?: Uint8Array }): RecognizedKeyInfo {
   return (material.publicKeyDer ? recognizePublicKey(material.publicKeyDer) : null) ||
     (material.privateKeyDer ? recognizePrivateKey(material.privateKeyDer) : createRecognizedKeyInfo("Unknown", "Unknown"));
+}
+
+function getGenerationOptions(selection: string): KeyAlgorithmCandidate {
+  const supported = KEY_ALGORITHM_CANDIDATES.find((candidate) => candidate.id === selection);
+  if (!supported) throw new Error(`Unsupported algorithm: ${selection || "(none selected)"}`);
+  return supported;
+}
+
+async function isKeyAlgorithmSupported(candidate: KeyAlgorithmCandidate): Promise<boolean> {
+  try {
+    const generated = await crypto.subtle.generateKey(candidate.algorithm, true, candidate.usages);
+    return isCryptoKeyPair(generated);
+  } catch {
+    return false;
+  }
+}
+
+function createRsaCandidates(name: string, hash: string, usages: KeyUsage[]): KeyAlgorithmCandidate[] {
+  return [2048, 3072, 4096].map((modulusLength) => ({
+    id: `${name.toLowerCase()}-${modulusLength}`,
+    canonicalId: `rsa-${modulusLength}`,
+    canonicalLabel: `RSA ${modulusLength}`,
+    algorithm: {
+      name,
+      modulusLength,
+      publicExponent: new Uint8Array([0x01, 0x00, 0x01]),
+      hash,
+    },
+    usages,
+  }));
+}
+
+function createNamedCurveCandidates(name: string, curves: string[], usages: KeyUsage[]): KeyAlgorithmCandidate[] {
+  return curves.map((namedCurve) => ({
+    id: name === namedCurve ? name.toLowerCase() : `${name.toLowerCase()}-${namedCurve.toLowerCase()}`,
+    canonicalId: name === "ECDSA" || name === "ECDH" ? `ec-${namedCurve.toLowerCase()}` : name.toLowerCase(),
+    canonicalLabel: name === "ECDSA" || name === "ECDH" ? `EC ${namedCurve}` : name,
+    algorithm: name === namedCurve ? { name } : { name, namedCurve },
+    usages,
+  }));
+}
+
+function isCryptoKeyPair(value: CryptoKey | CryptoKeyPair): value is CryptoKeyPair {
+  return "privateKey" in value && "publicKey" in value;
+}
+
+function describeKeyAlgorithmCandidate(candidate: KeyAlgorithmCandidate) {
+  return {
+    id: candidate.id,
+    canonicalId: candidate.canonicalId,
+    label: candidate.canonicalLabel,
+    algorithm: candidate.algorithm,
+    usages: candidate.usages,
+  };
 }
 
 function recognizePublicKey(bytes: Uint8Array): RecognizedKeyInfo | null {
