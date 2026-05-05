@@ -4,8 +4,13 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 
 import {
+  decodeOidValue,
   describeNode,
+  encodeOidValue,
+  extractAsn1Node,
+  getAsn1NodeValue,
   loadOidNames,
+  normalizeAsn1Input,
   parseAsn1,
   resolveOid,
   summarizeAsn1,
@@ -25,9 +30,11 @@ const asn1InputSchema = {
   hexPreviewLength: z.number().int().min(1).max(4096).optional().describe("Maximum hex preview length."),
 };
 
+const outputEncodingSchema = z.enum(["hex", "base64"]).default("hex").describe("Output encoding for DER or value bytes.");
+
 const server = new McpServer({
   name: "@pkistudio/pkistudiomcp",
-  version: "0.0.7",
+  version: "0.0.8",
 });
 
 server.registerTool(
@@ -69,6 +76,75 @@ server.registerTool(
     },
   },
   async (input) => jsonToolResult(describeNode(input)),
+);
+
+server.registerTool(
+  "extract_asn1_node",
+  {
+    title: "Extract ASN.1 Node",
+    description: "Extract a parsed ASN.1 node and its subtree by node id as DER bytes.",
+    inputSchema: {
+      data: asn1InputSchema.data,
+      nodeId: z.string().min(1).describe("Node id from parse_asn1 output."),
+      format: inputFormatSchema,
+      encoding: outputEncodingSchema,
+    },
+  },
+  async (input) => jsonToolResult(extractAsn1Node(input)),
+);
+
+server.registerTool(
+  "normalize_asn1_input",
+  {
+    title: "Normalize ASN.1 Input",
+    description: "Decode DER, BER, PEM, HEX, or base64 input and return round-trip re-encoded ASN.1 bytes.",
+    inputSchema: {
+      data: asn1InputSchema.data,
+      format: inputFormatSchema,
+      encoding: outputEncodingSchema,
+    },
+  },
+  async (input) => jsonToolResult(normalizeAsn1Input(input)),
+);
+
+server.registerTool(
+  "asn1_node_value",
+  {
+    title: "ASN.1 Node Value",
+    description: "Return the decoded display value and raw value bytes for one parsed ASN.1 node.",
+    inputSchema: {
+      data: asn1InputSchema.data,
+      nodeId: z.string().min(1).describe("Node id from parse_asn1 output."),
+      format: inputFormatSchema,
+      encoding: outputEncodingSchema,
+    },
+  },
+  async (input) => jsonToolResult(getAsn1NodeValue(input)),
+);
+
+server.registerTool(
+  "encode_oid",
+  {
+    title: "Encode OID",
+    description: "Encode an object identifier string into ASN.1 OBJECT IDENTIFIER value bytes.",
+    inputSchema: {
+      oid: z.string().regex(/^\d+(?:\.\d+)+$/).describe("Object identifier, for example 1.2.840.113549.1.1.11."),
+    },
+  },
+  async ({ oid }) => jsonToolResult(encodeOidValue(oid)),
+);
+
+server.registerTool(
+  "decode_oid_value",
+  {
+    title: "Decode OID Value",
+    description: "Decode ASN.1 OBJECT IDENTIFIER value bytes into dotted object identifier text.",
+    inputSchema: {
+      value: z.string().min(1).describe("ASN.1 OBJECT IDENTIFIER value bytes as HEX or base64."),
+      encoding: outputEncodingSchema,
+    },
+  },
+  async (input) => jsonToolResult(decodeOidValue(input)),
 );
 
 server.registerTool(

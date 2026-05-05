@@ -43,13 +43,27 @@ type ParsedDocument = {
 };
 
 type PkiStudioCore = {
+  base64ToBytes(base64: string): Uint8Array;
+  bytesToBase64(bytes: Uint8Array): string;
+  decodeInput(input: string | Uint8Array, options?: Pick<ParseOptions, "format">): { bytes: Uint8Array; format: string };
+  decodeOid(bytes: Uint8Array): string;
+  describeValue(node: unknown): string;
+  encodeNodes(nodes: unknown[]): Uint8Array;
+  encodeOid(oid: string): Uint8Array;
   parseInput(input: string | Uint8Array, options?: ParseOptions): ParsedDocument;
   parseAsn1(input: string | Uint8Array, options?: ParseOptions): { format: string; length: number; nodes: SerializedNode[] };
   serializeNode(node: unknown, options?: ParseOptions): SerializedNode;
   serializeTree(nodes: unknown[], options?: ParseOptions): SerializedNode[];
   findNodeById(nodes: unknown[], nodeId: string): unknown | null;
+  getNodeBytes(nodes: unknown[], nodeId: string): Uint8Array;
+  getNodeValueBytes(node: unknown): Uint8Array;
+  getTagName(node: unknown): string;
+  hexToBytes(text: string, options?: { allowEmpty?: boolean }): Uint8Array;
   resolveOid(oid: string, oidNames?: Record<string, string>): string;
+  toLowerHexString(bytes: Uint8Array): string;
 };
+
+type OutputEncoding = "hex" | "base64";
 
 type Asn1Input = ParseOptions & {
   data: string;
@@ -64,6 +78,24 @@ type SummaryInput = {
 type DescribeNodeInput = ParseOptions & {
   data: string;
   nodeId: string;
+};
+
+type NodeInput = {
+  data: string;
+  nodeId: string;
+  format?: InputFormat;
+  encoding?: OutputEncoding;
+};
+
+type NormalizeInput = {
+  data: string;
+  format?: InputFormat;
+  encoding?: OutputEncoding;
+};
+
+type DecodeOidInput = {
+  value: string;
+  encoding?: OutputEncoding;
 };
 
 const require = createRequire(import.meta.url);
@@ -123,6 +155,75 @@ export function describeNode(input: DescribeNodeInput) {
   return pkistudio.serializeNode(node, withOidNames(input));
 }
 
+export function extractAsn1Node(input: NodeInput) {
+  const document = pkistudio.parseInput(input.data, { format: input.format, oidNames: loadOidNames() });
+  const node = pkistudio.findNodeById(document.nodes, input.nodeId);
+  if (!node) {
+    throw new Error(`ASN.1 node not found: ${input.nodeId}`);
+  }
+
+  const bytes = pkistudio.getNodeBytes(document.nodes, input.nodeId);
+  return {
+    nodeId: input.nodeId,
+    sourceFormat: document.format,
+    length: bytes.length,
+    encoding: input.encoding ?? "hex",
+    data: encodeBytes(bytes, input.encoding),
+    node: pkistudio.serializeNode(node, { maxDepth: 1, includeHexPreview: true, oidNames: loadOidNames() }),
+  };
+}
+
+export function normalizeAsn1Input(input: NormalizeInput) {
+  const document = pkistudio.parseInput(input.data, { format: input.format, oidNames: loadOidNames() });
+  const encodedBytes = pkistudio.encodeNodes(document.nodes);
+  return {
+    sourceFormat: document.format,
+    length: document.bytes.length,
+    canonicalLength: encodedBytes.length,
+    roundTrip: bytesEqual(document.bytes, encodedBytes),
+    encoding: input.encoding ?? "hex",
+    data: encodeBytes(encodedBytes, input.encoding),
+  };
+}
+
+export function getAsn1NodeValue(input: NodeInput) {
+  const document = pkistudio.parseInput(input.data, { format: input.format, oidNames: loadOidNames() });
+  const node = pkistudio.findNodeById(document.nodes, input.nodeId);
+  if (!node) {
+    throw new Error(`ASN.1 node not found: ${input.nodeId}`);
+  }
+
+  const valueBytes = pkistudio.getNodeValueBytes(node);
+  return {
+    nodeId: input.nodeId,
+    sourceFormat: document.format,
+    tagName: pkistudio.getTagName(node),
+    value: pkistudio.describeValue(node),
+    valueLength: valueBytes.length,
+    encoding: input.encoding ?? "hex",
+    valueBytes: encodeBytes(valueBytes, input.encoding),
+  };
+}
+
+export function encodeOidValue(oid: string) {
+  const bytes = pkistudio.encodeOid(oid);
+  return {
+    oid,
+    valueHex: encodeBytes(bytes, "hex"),
+    valueBase64: encodeBytes(bytes, "base64"),
+  };
+}
+
+export function decodeOidValue(input: DecodeOidInput) {
+  const bytes = decodeBytes(input.value, input.encoding ?? "hex");
+  const oid = pkistudio.decodeOid(bytes);
+  return {
+    oid,
+    valueHex: encodeBytes(bytes, "hex"),
+    name: resolveOid(oid).name,
+  };
+}
+
 export function resolveOid(oid: string) {
   const name = pkistudio.resolveOid(oid, loadOidNames());
   return {
@@ -154,4 +255,22 @@ function countBy(values: string[]): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const value of values) counts[value] = (counts[value] || 0) + 1;
   return counts;
+}
+
+function encodeBytes(bytes: Uint8Array, encoding: OutputEncoding = "hex"): string {
+  if (encoding === "base64") return pkistudio.bytesToBase64(bytes);
+  return pkistudio.toLowerHexString(bytes);
+}
+
+function decodeBytes(value: string, encoding: OutputEncoding): Uint8Array {
+  if (encoding === "base64") return pkistudio.base64ToBytes(value);
+  return pkistudio.hexToBytes(value);
+}
+
+function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
+  if (left.length !== right.length) return false;
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) return false;
+  }
+  return true;
 }
