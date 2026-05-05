@@ -24,6 +24,8 @@ The package currently depends on PkiStudioJS directly from GitHub and uses key m
 - `decode_oid_value`: Decode ASN.1 OBJECT IDENTIFIER value bytes into dotted OID text.
 - `resolve_oid`: Resolve an OID using the OID names bundled with PkiStudioJS.
 - `recognize_key_material`: Recognize a PKCS#8 private key or SPKI public key and report its key family, label, and capabilities.
+- `list_supported_key_algorithms`: List WebCrypto key pair algorithms supported by the current runtime for key generation.
+- `generate_key_pair`: Generate a key pair and return the private key as PKCS#8 DER and public key as SPKI DER.
 - `verify_key_pair`: Verify that a PKCS#8 private key matches an SPKI public key by signing and verifying sample data.
 - `certificate_matches_key`: Check whether an X.509 certificate public key matches supplied public key bytes or a PKCS#8 private key.
 - `create_csr`: Create a PKCS#10 certificate signing request from a private key, public key, and subject DN.
