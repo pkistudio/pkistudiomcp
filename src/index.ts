@@ -83,7 +83,7 @@ const certificateKeyUsageSchema = z.enum([
 
 const server = new McpServer({
   name: "@pkistudio/pkistudiomcp",
-  version: "0.2.1",
+  version: "0.2.2",
 });
 
 server.registerTool(
@@ -258,7 +258,7 @@ server.registerTool(
       publicKeyFormat: optionalInputFormatSchema,
     },
   },
-  async (input) => jsonToolResult(verifyKeyPair(input)),
+  async (input) => jsonToolResult(await verifyKeyPair(input)),
 );
 
 server.registerTool(
@@ -276,7 +276,7 @@ server.registerTool(
       encoding: outputEncodingSchema,
     },
   },
-  async (input) => jsonToolResult(certificateMatchesKey(input)),
+  async (input) => jsonToolResult(await certificateMatchesKey(input)),
 );
 
 server.registerTool(
@@ -294,7 +294,7 @@ server.registerTool(
       encoding: outputEncodingSchema,
     },
   },
-  async (input) => jsonToolResult(createCsr(input)),
+  async (input) => jsonToolResult(await createCsr(input)),
 );
 
 server.registerTool(
@@ -314,7 +314,7 @@ server.registerTool(
       encoding: outputEncodingSchema,
     },
   },
-  async (input) => jsonToolResult(createSelfSignedCertificate(input)),
+  async (input) => jsonToolResult(await createSelfSignedCertificate(input)),
 );
 
 server.registerTool(
@@ -330,7 +330,7 @@ server.registerTool(
       encoding: outputEncodingSchema,
     },
   },
-  async (input) => jsonToolResult(readPkcs12(input)),
+  async (input) => jsonToolResult(await readPkcs12(input)),
 );
 
 server.registerTool(
@@ -350,7 +350,7 @@ server.registerTool(
       encoding: outputEncodingSchema,
     },
   },
-  async (input) => jsonToolResult(writePkcs12(input)),
+  async (input) => jsonToolResult(await writePkcs12(input)),
 );
 
 async function main(): Promise<void> {
