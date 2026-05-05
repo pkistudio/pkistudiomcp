@@ -34,7 +34,7 @@ const outputEncodingSchema = z.enum(["hex", "base64"]).default("hex").describe("
 
 const server = new McpServer({
   name: "@pkistudio/pkistudiomcp",
-  version: "0.0.8",
+  version: "0.0.9",
 });
 
 server.registerTool(
