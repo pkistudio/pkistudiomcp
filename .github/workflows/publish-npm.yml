@@ -1,6 +1,9 @@
 name: Publish npm package
 
 on:
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
     inputs:
       version:
@@ -31,9 +34,14 @@ jobs:
 
       - name: Verify package version
         run: |
+          expected_version="${{ inputs.version }}"
+          if [[ -z "$expected_version" ]]; then
+            expected_version="${GITHUB_REF_NAME#v}"
+          fi
+
           actual_version="$(node -p "require('./package.json').version")"
-          if [[ "$actual_version" != "${{ inputs.version }}" ]]; then
-            echo "package.json version $actual_version does not match workflow input ${{ inputs.version }}"
+          if [[ "$actual_version" != "$expected_version" ]]; then
+            echo "package.json version $actual_version does not match expected version $expected_version"
             exit 1
           fi
 
