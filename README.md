@@ -104,7 +104,7 @@ After the package is published to npm:
 	"mcpServers": {
 		"pkistudio": {
 			"command": "npx",
-			"args": ["@pkistudio/pkistudiomcp"]
+			"args": ["-y", "@pkistudio/pkistudiomcp"]
 		}
 	}
 }
