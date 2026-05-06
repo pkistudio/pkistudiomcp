@@ -1,6 +1,20 @@
 # @pkistudio/pkistudiomcp
 
-`@pkistudio/pkistudiomcp` is a local stdio MCP server that exposes PkiStudioJS ASN.1 tools and Private Key Gadgets PKI key material helpers as MCP tools.
+PKI Studio MCP is a local stdio MCP server that lets AI assistants inspect and work with ASN.1, DER, PEM, X.509 certificates, CSRs, PKCS#8, SPKI, and PKCS#12 data.
+
+Use it to inspect, summarize, decode, generate, and verify:
+
+- ASN.1 / DER / BER / PEM data
+- OBJECT IDENTIFIERs
+- PKCS#8 private keys
+- SPKI public keys
+- X.509 certificates
+- PKCS#10 CSRs
+- PKCS#12 / PFX files
+
+It is useful for certificate debugging, PKI development, ASN.1 inspection, and AI-assisted cryptography tooling.
+
+Under the hood, `@pkistudio/pkistudiomcp` exposes PkiStudioJS ASN.1 tools and Private Key Gadgets PKI key material helpers as MCP tools.
 
 The package uses the published PkiStudioJS and Private Key Gadgets npm APIs:
 
@@ -12,6 +26,18 @@ The package uses the published PkiStudioJS and Private Key Gadgets npm APIs:
 	}
 }
 ```
+
+## What can I ask my AI assistant?
+
+After installing this MCP server, you can ask questions like:
+
+- Parse this PEM certificate and summarize its structure.
+- Show me all OIDs found in this DER data.
+- Tell me whether this private key matches this certificate.
+- Create a CSR for this subject DN.
+- Generate a self-signed certificate for testing.
+- Read this PKCS#12/PFX file and list contained certificates and keys.
+- Decode this OBJECT IDENTIFIER value.
 
 ## Tools
 
