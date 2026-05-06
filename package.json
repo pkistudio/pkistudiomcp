@@ -1,6 +1,6 @@
 {
   "name": "@pkistudio/pkistudiomcp",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Local MCP server exposing PkiStudioJS ASN.1 and PKI key material tools.",
   "type": "module",
   "repository": {
@@ -23,8 +23,10 @@
     "access": "public"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json && chmod 755 dist/index.js",
+    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.json && chmod 755 dist/index.js",
     "check": "npm run build && node --check dist/index.js",
+    "smoke": "npm run build && node scripts/smoke-test.mjs",
+    "test": "npm run check && node scripts/smoke-test.mjs",
     "prepare": "npm run build",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts"
@@ -42,8 +44,8 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "asn1js": "^3.0.10",
-    "pkijs": "^3.4.0",
-    "pkistudiojs": "github:pkistudio/pkistudiojs#v0.2.5",
+    "pkistudiojs": "^0.4.1",
+    "pvkgadgets": "^0.2.0",
     "zod": "^4.4.1"
   },
   "devDependencies": {

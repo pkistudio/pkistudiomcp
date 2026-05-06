@@ -83,7 +83,7 @@ const certificateKeyUsageSchema = z.enum([
 
 const server = new McpServer({
   name: "@pkistudio/pkistudiomcp",
-  version: "0.2.2",
+  version: "0.3.0",
 });
 
 server.registerTool(
