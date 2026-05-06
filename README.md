@@ -1,13 +1,14 @@
 # @pkistudio/pkistudiomcp
 
-`@pkistudio/pkistudiomcp` is a local stdio MCP server that exposes PkiStudioJS ASN.1 tools and PKI key material helpers as MCP tools.
+`@pkistudio/pkistudiomcp` is a local stdio MCP server that exposes PkiStudioJS ASN.1 tools and Private Key Gadgets PKI key material helpers as MCP tools.
 
-The package currently depends on PkiStudioJS directly from GitHub and uses key material recognition logic adapted from the Private Key Gadgets core API:
+The package uses the published PkiStudioJS and Private Key Gadgets npm APIs:
 
 ```json
 {
 	"dependencies": {
-		"pkistudiojs": "github:pkistudio/pkistudiojs#v0.2.5"
+		"pkistudiojs": "^0.4.1",
+		"pvkgadgets": "^0.2.0"
 	}
 }
 ```
