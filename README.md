@@ -22,7 +22,7 @@ The package uses the published PkiStudioJS and Private Key Gadgets npm APIs:
 {
 	"dependencies": {
 		"pkistudiojs": "^0.4.1",
-		"pvkgadgets": "^0.2.0"
+		"@pkistudio/pvkgadgets": "^0.3.0"
 	}
 }
 ```

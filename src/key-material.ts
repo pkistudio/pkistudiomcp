@@ -1,6 +1,6 @@
 import * as asn1js from "asn1js";
-import { PkiGadgetsCore, type KeyAlgorithmCandidate } from "pvkgadgets";
-import type { Pkcs12KeyMaterial } from "pvkgadgets/pkcs12";
+import { PvkGadgetsCore, type KeyAlgorithmCandidate } from "@pkistudio/pvkgadgets";
+import type { Pkcs12KeyMaterial } from "@pkistudio/pvkgadgets/pkcs12";
 
 import { decodeInputBytes, encodeOutputBytes } from "./pkistudio.js";
 
@@ -76,16 +76,16 @@ type WritePkcs12Input = {
 };
 
 export async function listSupportedKeyAlgorithms() {
-  const algorithms = await PkiGadgetsCore.getSupportedKeyAlgorithms();
+  const algorithms = await PvkGadgetsCore.getSupportedKeyAlgorithms();
   return { algorithms: algorithms.map(describeKeyAlgorithmCandidate) };
 }
 
 export async function generateKeyPair(input: GenerateKeyPairInput) {
-  const material = await PkiGadgetsCore.generateKeyPair(input.algorithm, { label: input.label });
+  const material = await PvkGadgetsCore.generateKeyPair(input.algorithm, { label: input.label });
   if (!material.privateKeyDer || !material.publicKeyDer) throw new Error("The runtime did not return a key pair.");
 
   const encoding = input.encoding ?? "hex";
-  const keyInfo = PkiGadgetsCore.recognizeKeyMaterial({
+  const keyInfo = PvkGadgetsCore.recognizeKeyMaterial({
     privateKeyDer: material.privateKeyDer,
     publicKeyDer: material.publicKeyDer,
   });
@@ -102,8 +102,8 @@ export async function generateKeyPair(input: GenerateKeyPairInput) {
 export function recognizeKeyMaterial(input: RecognizeInput) {
   const decoded = decodeInputBytes(input.data, input.format);
   const info = input.kind === "public"
-    ? PkiGadgetsCore.recognizeKeyMaterial({ publicKeyDer: decoded.bytes })
-    : PkiGadgetsCore.recognizeKeyMaterial({ privateKeyDer: decoded.bytes });
+    ? PvkGadgetsCore.recognizeKeyMaterial({ publicKeyDer: decoded.bytes })
+    : PvkGadgetsCore.recognizeKeyMaterial({ privateKeyDer: decoded.bytes });
 
   return {
     kind: input.kind,
@@ -116,8 +116,8 @@ export function recognizeKeyMaterial(input: RecognizeInput) {
 export async function verifyKeyPair(input: VerifyKeyPairInput) {
   const privateKey = decodeInputBytes(input.privateKey, input.privateKeyFormat);
   const publicKey = decodeInputBytes(input.publicKey, input.publicKeyFormat);
-  const keyInfo = PkiGadgetsCore.recognizeKeyMaterial({ privateKeyDer: privateKey.bytes, publicKeyDer: publicKey.bytes });
-  const matches = await PkiGadgetsCore.verifyPrivateKeyMatchesPublicKey(privateKey.bytes, publicKey.bytes, keyInfo);
+  const keyInfo = PvkGadgetsCore.recognizeKeyMaterial({ privateKeyDer: privateKey.bytes, publicKeyDer: publicKey.bytes });
+  const matches = await PvkGadgetsCore.verifyPrivateKeyMatchesPublicKey(privateKey.bytes, publicKey.bytes, keyInfo);
 
   return {
     matches,
@@ -136,16 +136,16 @@ export async function certificateMatchesKey(input: CertificateMatchesKeyInput) {
 
   const certificate = decodeInputBytes(input.certificate, input.certificateFormat);
   const certificatePublicKeyDer = getCertificatePublicKeyDer(certificate.bytes);
-  const certificatePublicKeyInfo = PkiGadgetsCore.recognizeKeyMaterial({ publicKeyDer: certificatePublicKeyDer });
+  const certificatePublicKeyInfo = PvkGadgetsCore.recognizeKeyMaterial({ publicKeyDer: certificatePublicKeyDer });
   const publicKey = input.publicKey ? decodeInputBytes(input.publicKey, input.publicKeyFormat) : undefined;
   const privateKey = input.privateKey ? decodeInputBytes(input.privateKey, input.privateKeyFormat) : undefined;
-  const keyInfo = PkiGadgetsCore.recognizeKeyMaterial({
+  const keyInfo = PvkGadgetsCore.recognizeKeyMaterial({
     privateKeyDer: privateKey?.bytes,
     publicKeyDer: publicKey?.bytes,
   });
   const matches = publicKey
-    ? PkiGadgetsCore.bytesEqual(publicKey.bytes, certificatePublicKeyDer)
-    : await PkiGadgetsCore.verifyPrivateKeyMatchesPublicKey(privateKey?.bytes ?? new Uint8Array(), certificatePublicKeyDer, keyInfo);
+    ? PvkGadgetsCore.bytesEqual(publicKey.bytes, certificatePublicKeyDer)
+    : await PvkGadgetsCore.verifyPrivateKeyMatchesPublicKey(privateKey?.bytes ?? new Uint8Array(), certificatePublicKeyDer, keyInfo);
 
   return {
     matches,
@@ -165,12 +165,12 @@ export async function createCsr(input: CreateCsrInput) {
   const privateKey = decodeInputBytes(input.privateKey, input.privateKeyFormat);
   const publicKey = decodeInputBytes(input.publicKey, input.publicKeyFormat);
   const hashAlgorithm = input.hashAlgorithm ?? "SHA-256";
-  const keyInfo = PkiGadgetsCore.recognizeKeyMaterial({ privateKeyDer: privateKey.bytes, publicKeyDer: publicKey.bytes });
-  const result = await PkiGadgetsCore.createCsr({
+  const keyInfo = PvkGadgetsCore.recognizeKeyMaterial({ privateKeyDer: privateKey.bytes, publicKeyDer: publicKey.bytes });
+  const result = await PvkGadgetsCore.createCsr({
     privateKeyDer: privateKey.bytes,
     publicKeyDer: publicKey.bytes,
     subjectDn: input.subjectDn,
-    subjectBytes: PkiGadgetsCore.createSubjectDn(input.subjectDn),
+    subjectBytes: PvkGadgetsCore.createSubjectDn(input.subjectDn),
     hashAlgorithm,
   });
 
@@ -192,12 +192,12 @@ export async function createSelfSignedCertificate(input: CreateSelfSignedCertifi
   const keyUsages = input.keyUsages ?? ["digitalSignature", "keyCertSign", "cRLSign"];
   const notBefore = new Date();
   const notAfter = new Date(notBefore.getTime() + validityDays * 24 * 60 * 60 * 1000);
-  const keyInfo = PkiGadgetsCore.recognizeKeyMaterial({ privateKeyDer: privateKey.bytes, publicKeyDer: publicKey.bytes });
-  const result = await PkiGadgetsCore.createSelfSignedCertificate({
+  const keyInfo = PvkGadgetsCore.recognizeKeyMaterial({ privateKeyDer: privateKey.bytes, publicKeyDer: publicKey.bytes });
+  const result = await PvkGadgetsCore.createSelfSignedCertificate({
     privateKeyDer: privateKey.bytes,
     publicKeyDer: publicKey.bytes,
     subjectDn: input.subjectDn,
-    subjectBytes: PkiGadgetsCore.createSubjectDn(input.subjectDn),
+    subjectBytes: PvkGadgetsCore.createSubjectDn(input.subjectDn),
     hashAlgorithm,
     validityDays,
     keyUsages,
@@ -219,7 +219,7 @@ export async function createSelfSignedCertificate(input: CreateSelfSignedCertifi
 
 export async function readPkcs12(input: ReadPkcs12Input) {
   const decoded = decodeInputBytes(input.data, input.format);
-  const keys: Pkcs12KeyMaterial[] = await PkiGadgetsCore.readPkcs12(decoded.bytes, input.password, { sourceName: input.sourceName });
+  const keys: Pkcs12KeyMaterial[] = await PvkGadgetsCore.readPkcs12(decoded.bytes, input.password, { sourceName: input.sourceName });
   const encoding = input.encoding ?? "hex";
 
   return {
@@ -229,7 +229,7 @@ export async function readPkcs12(input: ReadPkcs12Input) {
       id: key.id,
       label: key.label,
       sourceName: key.sourceName,
-      keyInfo: PkiGadgetsCore.recognizeKeyMaterial({ privateKeyDer: key.privateKeyDer, publicKeyDer: key.publicKeyDer }),
+      keyInfo: PvkGadgetsCore.recognizeKeyMaterial({ privateKeyDer: key.privateKeyDer, publicKeyDer: key.publicKeyDer }),
       privateKey: describeBytes(key.privateKeyDer, encoding),
       publicKey: key.publicKeyDer ? describeBytes(key.publicKeyDer, encoding) : undefined,
       certificate: key.certificateDer ? describeBytes(key.certificateDer, encoding) : undefined,
@@ -238,7 +238,7 @@ export async function readPkcs12(input: ReadPkcs12Input) {
 }
 
 export async function writePkcs12(input: WritePkcs12Input) {
-  const bytes = await PkiGadgetsCore.writePkcs12(
+  const bytes = await PvkGadgetsCore.writePkcs12(
     input.keys.map((key) => ({
       label: key.label,
       privateKeyDer: decodeInputBytes(key.privateKey, key.privateKeyFormat).bytes,
@@ -256,7 +256,7 @@ export async function writePkcs12(input: WritePkcs12Input) {
 }
 
 function getGenerationOptions(selection: string): KeyAlgorithmCandidate {
-  const supported = PkiGadgetsCore.keyAlgorithms.find((candidate) => candidate.id === selection);
+  const supported = PvkGadgetsCore.keyAlgorithms.find((candidate) => candidate.id === selection);
   if (!supported) throw new Error(`Unsupported algorithm: ${selection || "(none selected)"}`);
   return supported;
 }
