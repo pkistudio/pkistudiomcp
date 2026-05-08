@@ -21,11 +21,13 @@ The package uses the published PkiStudioJS and Private Key Gadgets npm APIs:
 ```json
 {
 	"dependencies": {
-		"pkistudiojs": "^0.4.1",
-		"@pkistudio/pvkgadgets": "^0.3.0"
+		"@pkistudio/pkistudiojs": "^0.5.0",
+		"@pkistudio/pvkgadgets": "^0.3.1"
 	}
 }
 ```
+
+PkiStudioJS `0.5.x` is published as the scoped `@pkistudio/pkistudiojs` package. Its browser viewer also supports native read-only mode through `viewer.init({ editable: false })` and `setEditable(false)`. This MCP server uses the PkiStudioJS Core API rather than embedding the browser viewer, so the ASN.1 tools remain string-in/string-out MCP operations and do not expose a separate viewer editability option.
 
 ## What can I ask my AI assistant?
 
