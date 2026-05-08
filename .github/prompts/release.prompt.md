@@ -7,7 +7,7 @@ agent: "agent"
 
 # pkistudiomcp Release Workflow
 
-Run the standard `pkistudio/pkistudiomcp` release workflow from issue creation through npm publication and GitHub Release publication.
+Run the standard `pkistudio/pkistudiomcp` release workflow from issue creation through GitHub Release publication, npm publication, and post-release verification.
 
 Expected invocation examples:
 
@@ -15,27 +15,54 @@ Expected invocation examples:
 /release 0.0.4 "Add a new ASN.1 MCP tool"
 /release v0.0.4 "Fix MCP input validation"
 /release TBD "Improve OID lookup output"
+/release "Refresh MCP release automation"
 /release TBD #12
 /release 0.0.5 #12 "Implement requested parsing option"
 ```
 
 The release version may be omitted or set to `TBD` when development should proceed before the final version is known. If an existing issue number is supplied, use that issue instead of creating a duplicate issue. If the feature summary, desired release scope, issue reference, or whether a known-looking first argument is a version is unclear, ask concise clarifying questions before making changes. Otherwise proceed proactively.
 
+## Default Operating Mode
+
+When this prompt is invoked, proceed through the workflow without restating the full release procedure to the user. Treat the issue-to-release flow as the standard path and keep progress updates brief.
+
+Default assumptions:
+
+- If no issue number is supplied, create a tracking issue first.
+- If an issue number is supplied, use that issue as the source of truth.
+- Create a branch from the issue, implement the requested change, verify it, push it, and open a PR.
+- Use the issue body, issue comments, and PR body to preserve the release rationale, release notes draft, verification results, npm status, and publication status.
+- Do not merge, tag, publish, or create a GitHub Release until the user explicitly says to proceed.
+
+Ask only when:
+
+- The requested version is missing and the workflow has reached a version-required step.
+- The working tree has unrelated uncommitted changes.
+- npm or GitHub permissions block progress.
+- The issue requirements are ambiguous enough that implementation could go in the wrong direction.
+
+Confirmation gates:
+
+- Gate 1: PR merge.
+- Gate 2: version bump, tag push, GitHub Release creation, and the automatic npm publish trigger caused by the tag.
+- Gate 3: npm publish workflow rerun or manual npm publication if the tag-triggered publish needs intervention.
+- Gate 4: post-publication registry, fresh-install, MCP startup, and Actions verification.
+
 ## Required Safety Rules
 
-- This prompt is a workflow guide only and does not grant repository, npm, or GitHub permissions.
-- Push, merge, npm publish, tag, release, and secret-backed operations are possible only for users or tokens with the required permissions.
+- This prompt is a workflow guide only and does not grant repository permissions.
+- Push, tag, release, merge, and secret-backed Actions operations are possible only for users or tokens with the required repository permissions.
+- npm publication requires npm package ownership or a configured npm Trusted Publisher for `@pkistudio/pkistudiomcp` and `.github/workflows/publish-npm.yml`.
 - Work in the current repository only.
 - Confirm the repository is `pkistudio/pkistudiomcp` unless the user intentionally targets another repo.
 - Check the current branch, remote, and working tree before making changes.
 - Never discard uncommitted user changes.
 - If unrelated local changes exist, stop and ask how to proceed.
-- Create implementation work on a feature branch, never directly on `main`, unless the user explicitly asks for a direct release-only maintenance change.
-- Do not merge the PR, publish to npm, create tags, or publish the GitHub Release until the user confirms they have reviewed the behavior, unless the user explicitly asks to proceed without that confirmation.
+- Create implementation work on a feature branch, never directly on `main`.
 - Use existing repository patterns and keep changes focused on the requested issue.
+- Preserve existing `package.json` package metadata unless the release requires a focused change. Do not add `private: true` only to prevent npm publication.
 - Use non-interactive git commands.
 - Never print npm tokens, GitHub tokens, or secret values.
-- Prefer non-interactive npm authentication through `NODE_AUTH_TOKEN` or `NPM_TOKEN`. Do not run `npm login` during the release workflow unless the user explicitly asks for an interactive login.
 
 ## Inputs
 
@@ -47,14 +74,44 @@ Derive these from the invocation when possible:
 - `issueBody`: issue requirements. If the user supplied detailed requirements, preserve them.
 - `verificationPlan`: expected local checks. If not supplied, infer from the changed area.
 
+## Standard Record Templates
+
+Use these headings for new release tracking issues unless the issue already has a better structure:
+
+```md
+## Background
+## Scope
+## Release notes draft
+## Verification
+## Publication status
+```
+
+Use this shape for PR bodies:
+
+```md
+Summary:
+- ...
+
+Release notes draft:
+...
+
+Verification:
+- `npm run check`
+- `npm run smoke`
+- `npm pack --dry-run`
+
+Closes #<issue-number>
+```
+
 ## Repository Facts
 
 - npm package name: `@pkistudio/pkistudiomcp`
 - npm package access: public
-- npm publish command: `npm publish --access public`
-- npm non-interactive auth: use `NODE_AUTH_TOKEN` or `NPM_TOKEN` with a temporary npm user config.
+- npm publish command used by the release workflow: `npm publish --provenance --access public`
+- npm publication path: push an annotated `vX.Y.Z` tag and let `.github/workflows/publish-npm.yml` publish through npm Trusted Publishing.
 - Runtime command after publish: `npx -y @pkistudio/pkistudiomcp`
 - Main verification command: `npm run check`
+- Smoke verification command: `npm run smoke`
 - Publish dry run command: `npm pack --dry-run`
 - Release tags use the `vX.Y.Z` format.
 
@@ -144,63 +201,23 @@ Keep the package name as `@pkistudio/pkistudiomcp`. Keep the CLI bin name as `pk
     - Once the final version is chosen, normalize it to both `X.Y.Z` and `vX.Y.Z` forms and check that the npm version and git tag do not already exist.
     - If version references were deferred, create a focused version bump commit on `main` or on a release-prep branch/PR if the user wants review before publication.
 
-11. Publish to npm
-      - Prefer token-based authentication so the release does not require repeated browser-based 2FA approval. If neither `NODE_AUTH_TOKEN` nor `NPM_TOKEN` is available, stop and ask the user whether to provide an npm automation token, use GitHub Actions, or proceed with interactive `npm login`.
-      - If running in GitHub Actions or another CI environment, use `NODE_AUTH_TOKEN` with `actions/setup-node` configured for `https://registry.npmjs.org`. Prefer an npm automation token stored as `NPM_TOKEN`, or npm trusted publishing if it has been configured for this package.
-      - For local token-based publication, create a temporary npm user config outside the repository, use it for all npm auth and publish commands, then remove it before the final response:
-
-         ```sh
-         NPM_AUTH_TOKEN="${NODE_AUTH_TOKEN:-${NPM_TOKEN:-}}"
-         if [[ -z "$NPM_AUTH_TOKEN" ]]; then
-            echo "Set NODE_AUTH_TOKEN or NPM_TOKEN before publishing."
-            exit 1
-         fi
-
-         NPM_USERCONFIG="$(mktemp)"
-         trap 'rm -f "$NPM_USERCONFIG"' EXIT
-         printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_AUTH_TOKEN" > "$NPM_USERCONFIG"
-
-         npm whoami --userconfig "$NPM_USERCONFIG"
-         npm access get status @pkistudio/pkistudiomcp --userconfig "$NPM_USERCONFIG"
-         ```
-
-      - Run final local checks immediately before publishing:
-
-         ```sh
-         npm run check
-         npm pack --dry-run
-         ```
-
-      - Publish the package publicly:
-
-         ```sh
-         npm publish --access public --userconfig "$NPM_USERCONFIG"
-         ```
-
-      - Remove the temporary npm user config immediately after publish and before the final response:
-
-         ```sh
-         rm -f "$NPM_USERCONFIG"
-         trap - EXIT
-         unset NPM_AUTH_TOKEN NPM_USERCONFIG
-         ```
-
-      - Verify npm registry state:
-
-         ```sh
-         npm view @pkistudio/pkistudiomcp version dist-tags.latest --prefer-online
-         npm view @pkistudio/pkistudiomcp@X.Y.Z name version dist-tags.latest --prefer-online
-         ```
-
-      - If `npm publish` reports that the version already exists, do not retry with changed package contents. Stop and report the conflict.
-
-12. Tag and GitHub Release
+11. Tag, GitHub Release, and npm Publication
     - Create an annotated tag `vX.Y.Z` on the released `main` commit.
-    - Push the tag.
+    - Push the tag only after the user has approved Gate 2.
+    - The `Publish npm package` workflow runs on `v*` tag pushes and publishes with npm Trusted Publishing. It expects:
+      - npm package name: `@pkistudio/pkistudiomcp`
+      - GitHub owner/repository: `pkistudio/pkistudiomcp`
+      - workflow filename: `publish-npm.yml`
+      - npm Trusted Publishing environment: none / blank, unless the workflow is later changed to use one
+    - For scoped npm packages, `E404` during publish can mean the package does not exist yet or the workflow/account lacks scope permission.
+    - If npm publish fails with `E404` or `no permission`, explain that npm Trusted Publishing or initial package ownership is not configured. Do not keep rerunning the same job until npm permissions are fixed.
+    - Do not create a new tag just to retry npm publication when the version and tag are already correct. After fixing npm permissions or Trusted Publishing, rerun the failed publish workflow or publish manually from an authorized npm account.
+    - If the version was already published manually, do not rerun the publish job for the same tag/version; npm versions are immutable and the rerun will fail.
     - Create a GitHub Release named `vX.Y.Z` with release notes summarizing user-facing changes, npm package information, and issue or PR references.
     - Mark it as the latest stable release, not draft and not prerelease, unless instructed otherwise.
+    - After publication, verify `npm view @pkistudio/pkistudiomcp@X.Y.Z version dist-tags dist.tarball --json` and, when practical, perform a fresh temporary install from npm and run the CLI entry point.
 
-13. Confirm Final State
+12. Confirm Final State
     - Verify:
       - PR is merged and closed.
       - issue is closed as completed or its remaining state is reported.
