@@ -99,7 +99,7 @@ type DecodeOidInput = {
 };
 
 const require = createRequire(import.meta.url);
-const pkistudio = require("pkistudiojs") as PkiStudioCore;
+const pkistudio = require("@pkistudio/pkistudiojs") as PkiStudioCore;
 
 let oidNames: Record<string, string> | undefined;
 
@@ -107,7 +107,7 @@ export function loadOidNames(): Record<string, string> {
   if (oidNames) return oidNames;
 
   try {
-    const corePath = require.resolve("pkistudiojs");
+    const corePath = require.resolve("@pkistudio/pkistudiojs");
     oidNames = require(join(dirname(corePath), "oids.json")) as Record<string, string>;
   } catch {
     oidNames = {};
