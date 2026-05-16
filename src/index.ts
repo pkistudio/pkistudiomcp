@@ -1,8 +1,13 @@
 #!/usr/bin/env node
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { pathToFileURL } from "node:url";
 import { z } from "zod";
 
+import {
+  fetchCertificateNetworkResources,
+  parseCertificate,
+} from "./certificates.js";
 import {
   certificateMatchesKey,
   createCsr,
@@ -47,6 +52,7 @@ const asn1InputSchema = {
 };
 
 const outputEncodingSchema = z.enum(["hex", "base64"]).default("hex").describe("Output encoding for DER or value bytes.");
+const optionalOutputEncodingSchema = z.enum(["hex", "base64"]).optional().describe("Output encoding for returned bytes.");
 const hashAlgorithmSchema = z.enum(["SHA-256", "SHA-384", "SHA-512"]).default("SHA-256").describe("Hash algorithm for signing.");
 const keyAlgorithmSchema = z.enum([
   "rsassa-pkcs1-v1_5-2048",
@@ -80,11 +86,13 @@ const certificateKeyUsageSchema = z.enum([
   "encipherOnly",
   "decipherOnly",
 ]);
+const certificateNetworkResourceKindSchema = z.enum(["ocsp", "ca-issuers", "crl", "generic"]);
 
-const server = new McpServer({
-  name: "@pkistudio/pkistudiomcp",
-  version: "0.3.3",
-});
+export function createPkiStudioMcpServer(): McpServer {
+  const server = new McpServer({
+    name: "@pkistudio/pkistudiomcp",
+    version: "0.4.0",
+  });
 
 server.registerTool(
   "parse_asn1",
@@ -280,6 +288,43 @@ server.registerTool(
 );
 
 server.registerTool(
+  "parse_certificate",
+  {
+    title: "Parse Certificate",
+    description: "Parse an X.509 certificate with CertGadgets and return its structure, details, and CDP/AIA/OCSP resource plans without network access.",
+    inputSchema: {
+      data: z.string().min(1).describe("X.509 certificate as DER, PEM, HEX, or base64 text."),
+      format: inputFormatSchema,
+      sourceName: z.string().optional().describe("Optional source filename or label."),
+      maxDepth: z.number().int().min(0).max(32).optional().describe("Maximum certificate tree depth to include."),
+      includeDer: z.boolean().optional().describe("Include full DER bytes for certificate tree nodes."),
+      derEncoding: optionalOutputEncodingSchema,
+    },
+  },
+  async (input) => jsonToolResult(parseCertificate(input)),
+);
+
+server.registerTool(
+  "fetch_certificate_network_resources",
+  {
+    title: "Fetch Certificate Network Resources",
+    description: "Fetch HTTP(S) CDP/AIA/OCSP-related resources discovered in an X.509 certificate. Parsing itself is local; this tool performs external network access.",
+    inputSchema: {
+      data: z.string().min(1).describe("X.509 certificate as DER, PEM, HEX, or base64 text."),
+      format: inputFormatSchema,
+      sourceName: z.string().optional().describe("Optional source filename or label."),
+      resourceKinds: z.array(certificateNetworkResourceKindSchema).optional().describe("Limit fetched resources to selected kinds."),
+      urls: z.array(z.string().url()).optional().describe("Limit fetching to specific URLs discovered in the certificate."),
+      timeoutMs: z.number().int().min(100).max(60000).optional().describe("Per-resource network timeout in milliseconds."),
+      maxBytes: z.number().int().min(1).max(10485760).optional().describe("Maximum response bytes per resource."),
+      maxResources: z.number().int().min(1).max(50).optional().describe("Maximum number of resources to fetch."),
+      encoding: optionalOutputEncodingSchema,
+    },
+  },
+  async (input) => jsonToolResult(await fetchCertificateNetworkResources(input)),
+);
+
+server.registerTool(
   "create_csr",
   {
     title: "Create CSR",
@@ -353,8 +398,12 @@ server.registerTool(
   async (input) => jsonToolResult(await writePkcs12(input)),
 );
 
+  return server;
+}
+
 async function main(): Promise<void> {
   loadOidNames();
+  const server = createPkiStudioMcpServer();
   await server.connect(new StdioServerTransport());
 }
 
@@ -369,8 +418,10 @@ function jsonToolResult(value: unknown) {
   };
 }
 
-main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.stack || error.message : String(error);
-  console.error(message);
-  process.exit(1);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error: unknown) => {
+    const message = error instanceof Error ? error.stack || error.message : String(error);
+    console.error(message);
+    process.exit(1);
+  });
+}
