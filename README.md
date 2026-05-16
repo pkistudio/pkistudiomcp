@@ -90,6 +90,26 @@ node dist/http.js
 
 The HTTP MCP endpoint defaults to `http://127.0.0.1:3000/mcp`, and health checks are available at `http://127.0.0.1:3000/healthz`. Configure the MCP endpoint path with `PKISTUDIOMCP_HTTP_PATH`, and configure the bind address with `PKISTUDIOMCP_HTTP_HOST` and `PKISTUDIOMCP_HTTP_PORT`.
 
+Run the published Docker image:
+
+```sh
+docker run --rm -p 3000:3000 pkistudio/pkistudiomcp:latest
+```
+
+The Docker image starts the Streamable HTTP server by default. Its MCP endpoint is `http://127.0.0.1:3000/mcp`, and its health check is `http://127.0.0.1:3000/healthz`.
+
+Pin a release version when reproducibility matters:
+
+```sh
+docker run --rm -p 3000:3000 pkistudio/pkistudiomcp:0.4.0
+```
+
+To run the stdio server from the image instead:
+
+```sh
+docker run --rm -i pkistudio/pkistudiomcp:latest node dist/index.js
+```
+
 During development, you can also run the TypeScript entry point directly:
 
 ```sh
