@@ -9,7 +9,9 @@ import {
   verifyKeyPair,
   writePkcs12,
 } from "../dist/key-material.js";
+import { fetchCertificateNetworkResources, parseCertificate } from "../dist/certificates.js";
 import { parseAsn1 } from "../dist/pkistudio.js";
+import { safeFetchBytes } from "../dist/safe-fetch.js";
 
 const parsed = parseAsn1({ data: "3003020101", format: "hex" });
 assert.equal(parsed.nodes[0]?.tagName, "SEQUENCE");
@@ -57,6 +59,17 @@ const certificateMatch = await certificateMatchesKey({
 });
 assert.equal(certificateMatch.matches, true);
 
+const parsedCertificate = parseCertificate({ data: certificate.data, format: "base64" });
+assert.equal(parsedCertificate.document.root.kind, "certificate");
+
+const networkResources = await fetchCertificateNetworkResources({ data: certificate.data, format: "base64" });
+assert.equal(networkResources.fetchedCount, 0);
+
+await assert.rejects(
+  safeFetchBytes("http://127.0.0.1/", { timeoutMs: 1000, maxBytes: 1024 }),
+  /public IP address/,
+);
+
 const pkcs12 = await writePkcs12({
   keys: [
     {
@@ -86,6 +99,7 @@ console.log(JSON.stringify({
   verified: verified.matches,
   csrLength: csr.length,
   certificateMatches: certificateMatch.matches,
+  certificateRoot: parsedCertificate.document.root.kind,
   pkcs12Length: pkcs12.length,
   importedKeys: imported.keyCount,
 }));

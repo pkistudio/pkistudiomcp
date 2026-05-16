@@ -1,6 +1,6 @@
 # @pkistudio/pkistudiomcp
 
-PKI Studio MCP is a local stdio MCP server that lets AI assistants inspect and work with ASN.1, DER, PEM, X.509 certificates, CSRs, PKCS#8, SPKI, and PKCS#12 data.
+PKI Studio MCP is a local MCP server that lets AI assistants inspect and work with ASN.1, DER, PEM, X.509 certificates, CSRs, PKCS#8, SPKI, and PKCS#12 data. It supports stdio and Streamable HTTP transports.
 
 Use it to inspect, summarize, decode, generate, and verify:
 
@@ -14,13 +14,14 @@ Use it to inspect, summarize, decode, generate, and verify:
 
 It is useful for certificate debugging, PKI development, ASN.1 inspection, and AI-assisted cryptography tooling.
 
-Under the hood, `@pkistudio/pkistudiomcp` exposes PkiStudioJS ASN.1 tools and Private Key Gadgets PKI key material helpers as MCP tools.
+Under the hood, `@pkistudio/pkistudiomcp` exposes PkiStudioJS ASN.1 tools, CertGadgets certificate inspection helpers, and Private Key Gadgets PKI key material helpers as MCP tools.
 
-The package uses the published PkiStudioJS and Private Key Gadgets npm APIs:
+The package uses the published PkiStudioJS, CertGadgets, and Private Key Gadgets npm APIs:
 
 ```json
 {
 	"dependencies": {
+		"@pkistudio/certgadgets": "^0.1.3",
 		"@pkistudio/pkistudiojs": "^0.5.0",
 		"@pkistudio/pvkgadgets": "^0.3.1"
 	}
@@ -57,6 +58,8 @@ After installing this MCP server, you can ask questions like:
 - `generate_key_pair`: Generate a key pair and return the private key as PKCS#8 DER and public key as SPKI DER.
 - `verify_key_pair`: Verify that a PKCS#8 private key matches an SPKI public key by signing and verifying sample data.
 - `certificate_matches_key`: Check whether an X.509 certificate public key matches supplied public key bytes or a PKCS#8 private key.
+- `parse_certificate`: Parse an X.509 certificate with CertGadgets and return its structure, details, and CDP/AIA/OCSP network plans without network access.
+- `fetch_certificate_network_resources`: Fetch HTTP(S) CDP/AIA/OCSP-related resources discovered in an X.509 certificate. This tool performs external network access through an SSRF-aware fetch layer that blocks private, loopback, link-local, reserved, and non-default-port targets.
 - `create_csr`: Create a PKCS#10 certificate signing request from a private key, public key, and subject DN.
 - `create_self_signed_certificate`: Create a self-signed X.509 certificate from a private key, public key, and subject DN.
 - `read_pkcs12`: Read PKCS#12/PFX data and return contained private keys, public keys, and certificates.
@@ -78,10 +81,25 @@ npm run build
 node dist/index.js
 ```
 
+Run the Streamable HTTP server locally:
+
+```sh
+npm run build
+node dist/http.js
+```
+
+The HTTP MCP endpoint defaults to `http://127.0.0.1:3000/mcp`, and health checks are available at `http://127.0.0.1:3000/healthz`. Configure the MCP endpoint path with `PKISTUDIOMCP_HTTP_PATH`, and configure the bind address with `PKISTUDIOMCP_HTTP_HOST` and `PKISTUDIOMCP_HTTP_PORT`.
+
 During development, you can also run the TypeScript entry point directly:
 
 ```sh
 npm run dev
+```
+
+For HTTP development:
+
+```sh
+npm run dev:http
 ```
 
 ## MCP Client Configuration
@@ -115,7 +133,7 @@ After the package is published to npm:
 Publish the scoped package publicly:
 
 ```sh
-npm publish --access public
+npm publish --provenance --access public
 ```
 
 Until npm publication, GitHub installation can be tested with npm-compatible clients that accept GitHub package specs:
