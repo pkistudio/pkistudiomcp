@@ -98,6 +98,28 @@ docker run --rm -p 3000:3000 pkistudio/pkistudiomcp:latest
 
 The Docker image starts the Streamable HTTP server by default. Its MCP endpoint is `http://127.0.0.1:3000/mcp`, and its health check is `http://127.0.0.1:3000/healthz`.
 
+## Azure Container Apps Deployment
+
+The public Azure Container Apps deployment is available at:
+
+```text
+https://pkistudiomcp.blackfield-fee115fa.japaneast.azurecontainerapps.io
+```
+
+The Streamable HTTP MCP endpoint is:
+
+```text
+https://pkistudiomcp.blackfield-fee115fa.japaneast.azurecontainerapps.io/mcp
+```
+
+When the Docker image is updated, redeploy the latest image to Azure Container Apps with:
+
+```sh
+az containerapp update --name pkistudiomcp --resource-group <ResourceGroupID> --image docker.io/pkistudio/pkistudiomcp:latest
+```
+
+The update command itself does not contain credentials. The resource group name or ID is still environment metadata, so keep any real value out of public docs unless it is intentionally public.
+
 Pin a release version when reproducibility matters:
 
 ```sh
