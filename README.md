@@ -120,6 +120,37 @@ az containerapp update --name pkistudiomcp --resource-group <ResourceGroupID> --
 
 The update command itself does not contain credentials. The resource group name or ID is still environment metadata, so keep any real value out of public docs unless it is intentionally public.
 
+Smoke test the deployed service with:
+
+```sh
+curl -i https://pkistudiomcp.blackfield-fee115fa.japaneast.azurecontainerapps.io/healthz
+```
+
+List the available MCP tools:
+
+```sh
+curl -s -X POST \
+	-H "Content-Type: application/json" \
+	-H "Accept: application/json, text/event-stream" \
+	-d '{"method":"tools/list","params":{},"jsonrpc":"2.0","id":2}' \
+	https://pkistudiomcp.blackfield-fee115fa.japaneast.azurecontainerapps.io/mcp \
+	| grep '^data:' \
+	| sed 's/^data: //' \
+	| jq -r '.result.tools[].name'
+```
+
+Call a tool with a tiny ASN.1 sample:
+
+```sh
+curl -s -X POST \
+	-H "Content-Type: application/json" \
+	-H "Accept: application/json, text/event-stream" \
+	-d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"parse_asn1","arguments":{"data":"3003020101","format":"hex"}}}' \
+	https://pkistudiomcp.blackfield-fee115fa.japaneast.azurecontainerapps.io/mcp \
+	| grep '^data:' \
+	| sed 's/^data: //'
+```
+
 Pin a release version when reproducibility matters:
 
 ```sh
