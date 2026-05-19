@@ -112,10 +112,28 @@ The Streamable HTTP MCP endpoint is:
 https://pkistudiomcp.blackfield-fee115fa.japaneast.azurecontainerapps.io/mcp
 ```
 
-When the Docker image is updated, redeploy the latest image to Azure Container Apps with:
+When the Docker image is updated by the release workflow, GitHub Actions deploys the new release tag to Azure Container Apps through the `Deploy Azure Container Apps` workflow. The workflow can also be run manually for an existing image tag:
 
 ```sh
-az containerapp update --name pkistudiomcp --resource-group <ResourceGroupID> --image docker.io/pkistudio/pkistudiomcp:latest
+gh workflow run deploy-azure.yml -f tag=0.5.0
+```
+
+Configure these repository secrets for Azure OpenID Connect login:
+
+- `AZURE_CLIENT_ID`
+- `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID`
+
+Configure these repository variables:
+
+- `AZURE_RESOURCE_GROUP` for the Container Apps resource group.
+- `AZURE_CONTAINER_APP_NAME` when the app name is not `pkistudiomcp`.
+- `AZURE_HEALTH_URL` when the health endpoint differs from the public `/healthz` URL below.
+
+The deployment workflow updates the Container App with:
+
+```sh
+az containerapp update --name pkistudiomcp --resource-group <ResourceGroupID> --image docker.io/pkistudio/pkistudiomcp:<tag>
 ```
 
 The update command itself does not contain credentials. The resource group name or ID is still environment metadata, so keep any real value out of public docs unless it is intentionally public.
