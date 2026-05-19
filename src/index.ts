@@ -91,7 +91,7 @@ const certificateNetworkResourceKindSchema = z.enum(["ocsp", "ca-issuers", "crl"
 export function createPkiStudioMcpServer(): McpServer {
   const server = new McpServer({
     name: "@pkistudio/pkistudiomcp",
-    version: "0.4.0",
+    version: "0.5.0",
   });
 
 server.registerTool(
