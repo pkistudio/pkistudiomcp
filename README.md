@@ -22,13 +22,13 @@ The package uses the published PkiStudioJS, CertGadgets, and Private Key Gadgets
 {
 	"dependencies": {
 		"@pkistudio/certgadgets": "^0.1.3",
-		"@pkistudio/pkistudiojs": "^0.5.0",
-		"@pkistudio/pvkgadgets": "^0.3.1"
+		"@pkistudio/pkistudiojs": "^0.6.0",
+		"@pkistudio/pvkgadgets": "^0.4.1"
 	}
 }
 ```
 
-PkiStudioJS `0.5.x` is published as the scoped `@pkistudio/pkistudiojs` package. Its browser viewer also supports native read-only mode through `viewer.init({ editable: false })` and `setEditable(false)`. This MCP server uses the PkiStudioJS Core API rather than embedding the browser viewer, so the ASN.1 tools remain string-in/string-out MCP operations and do not expose a separate viewer editability option.
+PkiStudioJS `0.6.x` is published as the scoped `@pkistudio/pkistudiojs` package. Its browser viewer also supports native read-only mode through `viewer.init({ editable: false })` and `setEditable(false)`. This MCP server uses the PkiStudioJS Core API rather than embedding the browser viewer, so the ASN.1 tools remain string-in/string-out MCP operations and do not expose a separate viewer editability option.
 
 ## What can I ask my AI assistant?
 
@@ -154,7 +154,7 @@ curl -s -X POST \
 Pin a release version when reproducibility matters:
 
 ```sh
-docker run --rm -p 3000:3000 pkistudio/pkistudiomcp:0.4.0
+docker run --rm -p 3000:3000 pkistudio/pkistudiomcp:0.5.0
 ```
 
 To run the stdio server from the image instead:
