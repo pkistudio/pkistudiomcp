@@ -1,5 +1,5 @@
 ---
-description: "Use when: running the pkistudiomcp issue-to-release workflow, including issue creation, branch work, PR, merge, npm publish, Docker publish, Azure Container Apps deploy, tag, GitHub Release, and verification checks."
+description: "Use when: running the pkistudiomcp issue-to-release workflow, including issue creation, branch work, PR, merge, npm publish, Docker publish, tag, GitHub Release, post-release Azure deployment reminder, and verification checks."
 name: "pkistudiomcp release workflow"
 argument-hint: "[version|TBD] [#issue] <short feature or fix summary>"
 agent: "agent"
@@ -7,7 +7,7 @@ agent: "agent"
 
 # pkistudiomcp Release Workflow
 
-Run the standard `pkistudio/pkistudiomcp` release workflow from issue creation through GitHub Release publication, npm publication, Docker publication, Azure Container Apps deployment, and post-release verification.
+Run the standard `pkistudio/pkistudiomcp` release workflow from issue creation through GitHub Release publication, npm publication, Docker publication, post-release Azure deployment reminder, and post-release verification.
 
 Expected invocation examples:
 
@@ -31,7 +31,7 @@ Default assumptions:
 - If no issue number is supplied, create a tracking issue first.
 - If an issue number is supplied, use that issue as the source of truth.
 - Create a branch from the issue, implement the requested change, verify it, push it, and open a PR.
-- Use the issue body, issue comments, and PR body to preserve the release rationale, release notes draft, verification results, npm status, Docker status, Azure deployment status, and publication status.
+- Use the issue body, issue comments, and PR body to preserve the release rationale, release notes draft, verification results, npm status, Docker status, Azure deployment reminder status, and publication status.
 - Do not merge, tag, publish, or create a GitHub Release until the user explicitly says to proceed.
 
 Ask only when:
@@ -44,9 +44,9 @@ Ask only when:
 Confirmation gates:
 
 - Gate 1: PR merge.
-- Gate 2: version bump, tag push, GitHub Release creation, and the automatic npm and Docker publish triggers caused by the tag. Docker publication calls the Azure deployment workflow after a successful image push.
-- Gate 3: npm, Docker, or Azure workflow rerun; manual npm publication; or manual Azure deployment if the tag-triggered publication needs intervention.
-- Gate 4: post-publication registry, fresh-install, MCP startup, Docker image, Azure health endpoint, and Actions verification.
+- Gate 2: version bump, tag push, GitHub Release creation, and the automatic npm and Docker publish triggers caused by the tag.
+- Gate 3: npm or Docker workflow rerun, or manual npm publication if the tag-triggered publication needs intervention.
+- Gate 4: post-publication registry, fresh-install, MCP startup, Docker image, Actions verification, and a chat reminder telling the user to manually run the Azure deployment workflow when they are ready.
 
 ## Required Safety Rules
 
@@ -54,7 +54,7 @@ Confirmation gates:
 - Push, tag, release, merge, and secret-backed Actions operations are possible only for users or tokens with the required repository permissions.
 - npm publication requires npm package ownership or a configured npm Trusted Publisher for `@pkistudio/pkistudiomcp` and `.github/workflows/publish-npm.yml`.
 - Docker publication requires Docker Hub credentials configured for `.github/workflows/publish-docker.yml`.
-- Azure deployment requires GitHub Actions OpenID Connect credentials and repository variables configured for `.github/workflows/deploy-azure.yml`.
+- Azure deployment is intentionally manual and requires GitHub Actions OpenID Connect credentials and repository variables configured for `.github/workflows/deploy-azure.yml`.
 - Work in the current repository only.
 - Confirm the repository is `pkistudio/pkistudiomcp` unless the user intentionally targets another repo.
 - Check the current branch, remote, and working tree before making changes.
@@ -112,8 +112,9 @@ Closes #<issue-number>
 - npm publish command used by the release workflow: `npm publish --provenance --access public`
 - npm publication path: push an annotated `vX.Y.Z` tag and let `.github/workflows/publish-npm.yml` publish through npm Trusted Publishing.
 - Docker publication path: push an annotated `vX.Y.Z` tag and let `.github/workflows/publish-docker.yml` publish `docker.io/pkistudio/pkistudiomcp:X.Y.Z` and `docker.io/pkistudio/pkistudiomcp:latest`.
-- Azure deployment path: after Docker publication succeeds, `.github/workflows/publish-docker.yml` calls `.github/workflows/deploy-azure.yml` with image tag `X.Y.Z`.
-- Azure deployment workflow manual rerun command: `gh workflow run deploy-azure.yml -f tag=X.Y.Z`.
+- Azure deployment path: manually run `.github/workflows/deploy-azure.yml` after the release if the public Azure Container Apps deployment should be updated.
+- Azure deployment workflow manual command: `gh workflow run deploy-azure.yml -f tag=X.Y.Z --ref main`.
+- Azure deployment reminder: tell the user to configure the required Azure secrets and repository variable before running the manual workflow.
 - Azure deployment required secrets: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and `AZURE_SUBSCRIPTION_ID`.
 - Azure deployment required repository variable: `AZURE_RESOURCE_GROUP`.
 - Azure deployment optional repository variables: `AZURE_CONTAINER_APP_NAME` and `AZURE_HEALTH_URL`.
@@ -210,44 +211,38 @@ Keep the package name as `@pkistudio/pkistudiomcp`. Keep the CLI bin name as `pk
     - Once the final version is chosen, normalize it to both `X.Y.Z` and `vX.Y.Z` forms and check that the npm version and git tag do not already exist.
     - If version references were deferred, create a focused version bump commit on `main` or on a release-prep branch/PR if the user wants review before publication.
 
-11. Tag, GitHub Release, npm, Docker, and Azure Publication
-      - Create an annotated tag `vX.Y.Z` on the released `main` commit.
-      - Push the tag only after the user has approved Gate 2.
-      - The `Publish npm package` workflow runs on `v*` tag pushes and publishes with npm Trusted Publishing. It expects:
-         - npm package name: `@pkistudio/pkistudiomcp`
-         - GitHub owner/repository: `pkistudio/pkistudiomcp`
-         - workflow filename: `publish-npm.yml`
-         - npm Trusted Publishing environment: none / blank, unless the workflow is later changed to use one
-      - The `Publish Docker image` workflow runs on `v*` tag pushes and publishes the versioned image and `latest` image to Docker Hub. It expects:
-         - Docker image name: `docker.io/pkistudio/pkistudiomcp`
-         - Docker Hub credentials: `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`
-         - workflow filename: `publish-docker.yml`
-      - After Docker publication succeeds, the Docker workflow calls `Deploy Azure Container Apps` with the release image tag. It expects:
-         - Azure workflow filename: `deploy-azure.yml`
-         - Azure OpenID Connect secrets: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and `AZURE_SUBSCRIPTION_ID`
-         - Azure resource group repository variable: `AZURE_RESOURCE_GROUP`
-         - Azure Container App repository variable: `AZURE_CONTAINER_APP_NAME`, defaulting to `pkistudiomcp` when omitted
-         - Azure health URL repository variable: `AZURE_HEALTH_URL`, defaulting to the public `/healthz` endpoint when omitted
-      - For scoped npm packages, `E404` during publish can mean the package does not exist yet or the workflow/account lacks scope permission.
-      - If npm publish fails with `E404` or `no permission`, explain that npm Trusted Publishing or initial package ownership is not configured. Do not keep rerunning the same job until npm permissions are fixed.
-      - Do not create a new tag just to retry npm publication when the version and tag are already correct. After fixing npm permissions or Trusted Publishing, rerun the failed publish workflow or publish manually from an authorized npm account.
-      - If the version was already published manually, do not rerun the publish job for the same tag/version; npm versions are immutable and the rerun will fail.
-      - Do not create a new tag just to retry Docker publication or Azure deployment when the version and tag are already correct. After fixing Docker or Azure configuration, rerun the failed workflow or run `gh workflow run deploy-azure.yml -f tag=X.Y.Z` for Azure-only redeployment.
-      - Create a GitHub Release named `vX.Y.Z` with release notes summarizing user-facing changes, npm package information, and issue or PR references.
-      - Mark it as the latest stable release, not draft and not prerelease, unless instructed otherwise.
-      - After publication, verify `npm view @pkistudio/pkistudiomcp@X.Y.Z version dist-tags dist.tarball --json`, inspect Docker manifests for `docker.io/pkistudio/pkistudiomcp:X.Y.Z` and `docker.io/pkistudio/pkistudiomcp:latest`, confirm Azure deployment workflow success, and, when practical, perform a fresh temporary install from npm and run the CLI entry point.
+11. Tag, GitHub Release, npm, and Docker Publication
+   - Create an annotated tag `vX.Y.Z` on the released `main` commit.
+   - Push the tag only after the user has approved Gate 2.
+   - The `Publish npm package` workflow runs on `v*` tag pushes and publishes with npm Trusted Publishing. It expects:
+     - npm package name: `@pkistudio/pkistudiomcp`
+     - GitHub owner/repository: `pkistudio/pkistudiomcp`
+     - workflow filename: `publish-npm.yml`
+     - npm Trusted Publishing environment: none / blank, unless the workflow is later changed to use one
+   - The `Publish Docker image` workflow runs on `v*` tag pushes and publishes the versioned image and `latest` image to Docker Hub. It expects:
+     - Docker image name: `docker.io/pkistudio/pkistudiomcp`
+     - Docker Hub credentials: `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`
+     - workflow filename: `publish-docker.yml`
+   - For scoped npm packages, `E404` during publish can mean the package does not exist yet or the workflow/account lacks scope permission.
+   - If npm publish fails with `E404` or `no permission`, explain that npm Trusted Publishing or initial package ownership is not configured. Do not keep rerunning the same job until npm permissions are fixed.
+   - Do not create a new tag just to retry npm publication when the version and tag are already correct. After fixing npm permissions or Trusted Publishing, rerun the failed publish workflow or publish manually from an authorized npm account.
+   - If the version was already published manually, do not rerun the publish job for the same tag/version; npm versions are immutable and the rerun will fail.
+   - Do not create a new tag just to retry Docker publication when the version and tag are already correct. After fixing Docker configuration, rerun the failed workflow.
+   - Create a GitHub Release named `vX.Y.Z` with release notes summarizing user-facing changes, npm package information, and issue or PR references.
+   - Mark it as the latest stable release, not draft and not prerelease, unless instructed otherwise.
+   - After publication, verify `npm view @pkistudio/pkistudiomcp@X.Y.Z version dist-tags dist.tarball --json`, inspect Docker manifests for `docker.io/pkistudio/pkistudiomcp:X.Y.Z` and `docker.io/pkistudio/pkistudiomcp:latest`, and, when practical, perform a fresh temporary install from npm and run the CLI entry point.
+   - In the chat final response, remind the user that Azure Container Apps deployment is manual and can be triggered with `gh workflow run deploy-azure.yml -f tag=X.Y.Z --ref main` or from the GitHub Actions UI.
 
 12. Confirm Final State
-      - Verify:
-         - PR is merged and closed.
-         - issue is closed as completed or its remaining state is reported.
-         - npm `latest` points to `X.Y.Z`.
-         - Docker Hub has `X.Y.Z` and `latest` images.
-         - Azure Container Apps deployment workflow completed successfully and the health endpoint responds.
-         - tag exists on `main` HEAD.
-         - GitHub Release is published.
-         - relevant GitHub Actions completed or are still running.
-      - Final response must include issue, PR, npm package version, Docker image status, Azure deployment status, release, tag, verification summary, and any Actions status.
+   - Verify:
+     - PR is merged and closed.
+     - issue is closed as completed or its remaining state is reported.
+     - npm `latest` points to `X.Y.Z`.
+     - Docker Hub has `X.Y.Z` and `latest` images.
+     - tag exists on `main` HEAD.
+     - GitHub Release is published.
+     - relevant GitHub Actions completed or are still running.
+   - Final response must include issue, PR, npm package version, Docker image status, release, tag, verification summary, Actions status, and the manual Azure deployment reminder.
 
 ## Final Response Format
 
@@ -257,8 +252,8 @@ Keep the final response concise and include:
 - PR link and merge state
 - npm package link and published version
 - Docker image publication state
-- Azure deployment state and health check
 - Release link and tag
 - Verification summary
 - Actions status
+- Manual Azure deployment reminder
 - Any follow-up needed
