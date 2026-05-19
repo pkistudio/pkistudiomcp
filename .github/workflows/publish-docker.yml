@@ -13,11 +13,14 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   publish:
     name: Publish to Docker Hub
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -64,3 +67,14 @@ jobs:
             org.opencontainers.image.source=https://github.com/pkistudio/pkistudiomcp
             org.opencontainers.image.version=${{ steps.version.outputs.version }}
             org.opencontainers.image.licenses=MIT
+
+  deploy-azure:
+    name: Deploy to Azure Container Apps
+    needs: publish
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/deploy-azure.yml
+    with:
+      tag: ${{ needs.publish.outputs.version }}
+    secrets: inherit

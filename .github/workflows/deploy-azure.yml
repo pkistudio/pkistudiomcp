@@ -1,0 +1,120 @@
+name: Deploy Azure Container Apps
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: "Docker image tag to deploy, such as 0.5.0 or latest"
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Docker image tag to deploy, such as 0.5.0 or latest"
+        required: true
+        default: latest
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Deploy to Azure Container Apps
+    runs-on: ubuntu-latest
+    env:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      AZURE_CONTAINER_APP_NAME: ${{ vars.AZURE_CONTAINER_APP_NAME || 'pkistudiomcp' }}
+      AZURE_HEALTH_URL: ${{ vars.AZURE_HEALTH_URL || 'https://pkistudiomcp.blackfield-fee115fa.japaneast.azurecontainerapps.io/healthz' }}
+      IMAGE_REPOSITORY: docker.io/pkistudio/pkistudiomcp
+    steps:
+      - name: Compute image reference
+        id: image
+        shell: bash
+        run: |
+          image_tag="${{ inputs.tag }}"
+          image_tag="${image_tag#v}"
+
+          if [[ -z "$image_tag" ]]; then
+            echo "::error::Docker image tag is required."
+            exit 1
+          fi
+
+          if [[ ! "$image_tag" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
+            echo "::error::Invalid Docker image tag: $image_tag"
+            exit 1
+          fi
+
+          echo "tag=$image_tag" >> "$GITHUB_OUTPUT"
+          echo "image=${IMAGE_REPOSITORY}:${image_tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate Azure configuration
+        shell: bash
+        run: |
+          missing=0
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP AZURE_CONTAINER_APP_NAME; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::$name is required for Azure Container Apps deployment."
+              missing=1
+            fi
+          done
+
+          if [[ "$missing" -ne 0 ]]; then
+            exit 1
+          fi
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy image
+        shell: bash
+        run: |
+          az containerapp update \
+            --name "$AZURE_CONTAINER_APP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --image "${{ steps.image.outputs.image }}"
+
+      - name: Show deployed revision
+        shell: bash
+        run: |
+          az containerapp show \
+            --name "$AZURE_CONTAINER_APP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --query '{name:name, latestRevisionName:properties.latestRevisionName, latestRevisionFqdn:properties.latestRevisionFqdn, provisioningState:properties.provisioningState}' \
+            --output json
+
+      - name: Verify health endpoint
+        shell: bash
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error "$AZURE_HEALTH_URL"; then
+              echo
+              echo "Health check passed for $AZURE_HEALTH_URL"
+              exit 0
+            fi
+
+            echo "Health check attempt $attempt failed; retrying."
+            sleep 10
+          done
+
+          echo "::error::Health check failed for $AZURE_HEALTH_URL"
+          exit 1
+
+      - name: Write deployment summary
+        shell: bash
+        run: |
+          {
+            echo "### Azure Container Apps deployment"
+            echo
+            echo "- App: $AZURE_CONTAINER_APP_NAME"
+            echo "- Image: ${{ steps.image.outputs.image }}"
+            echo "- Health URL: $AZURE_HEALTH_URL"
+          } >> "$GITHUB_STEP_SUMMARY"
