@@ -118,6 +118,8 @@ When the Docker image is updated by the release workflow, deploy the new release
 gh workflow run deploy-azure.yml -f tag=0.5.0 --ref main
 ```
 
+The workflow fails during `Validate Azure configuration` until the required repository secrets and variables below are configured.
+
 Configure these repository secrets for Azure OpenID Connect login:
 
 - `AZURE_CLIENT_ID`

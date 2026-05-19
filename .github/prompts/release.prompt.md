@@ -114,6 +114,7 @@ Closes #<issue-number>
 - Docker publication path: push an annotated `vX.Y.Z` tag and let `.github/workflows/publish-docker.yml` publish `docker.io/pkistudio/pkistudiomcp:X.Y.Z` and `docker.io/pkistudio/pkistudiomcp:latest`.
 - Azure deployment path: manually run `.github/workflows/deploy-azure.yml` after the release if the public Azure Container Apps deployment should be updated.
 - Azure deployment workflow manual command: `gh workflow run deploy-azure.yml -f tag=X.Y.Z --ref main`.
+- Azure deployment reminder: tell the user to configure the required Azure secrets and repository variable before running the manual workflow.
 - Azure deployment required secrets: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and `AZURE_SUBSCRIPTION_ID`.
 - Azure deployment required repository variable: `AZURE_RESOURCE_GROUP`.
 - Azure deployment optional repository variables: `AZURE_CONTAINER_APP_NAME` and `AZURE_HEALTH_URL`.

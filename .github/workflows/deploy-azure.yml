@@ -56,7 +56,7 @@ jobs:
         shell: bash
         run: |
           missing=0
-          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP AZURE_CONTAINER_APP_NAME; do
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID AZURE_RESOURCE_GROUP; do
             if [[ -z "${!name}" ]]; then
               echo "::error::$name is required for Azure Container Apps deployment."
               missing=1
@@ -64,6 +64,22 @@ jobs:
           done
 
           if [[ "$missing" -ne 0 ]]; then
+            echo "::error::Configure repository secrets AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID and repository variable AZURE_RESOURCE_GROUP before running this workflow."
+            {
+              echo "### Azure Container Apps deployment configuration missing"
+              echo
+              echo "Configure these repository secrets before rerunning this workflow:"
+              echo
+              echo "- AZURE_CLIENT_ID"
+              echo "- AZURE_TENANT_ID"
+              echo "- AZURE_SUBSCRIPTION_ID"
+              echo
+              echo "Configure this repository variable before rerunning this workflow:"
+              echo
+              echo "- AZURE_RESOURCE_GROUP"
+              echo
+              echo "Optional repository variables: AZURE_CONTAINER_APP_NAME, AZURE_HEALTH_URL"
+            } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
 
