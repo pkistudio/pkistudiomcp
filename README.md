@@ -112,10 +112,10 @@ The Streamable HTTP MCP endpoint is:
 https://pkistudiomcp.blackfield-fee115fa.japaneast.azurecontainerapps.io/mcp
 ```
 
-When the Docker image is updated by the release workflow, GitHub Actions deploys the new release tag to Azure Container Apps through the `Deploy Azure Container Apps` workflow. The workflow can also be run manually for an existing image tag:
+When the Docker image is updated by the release workflow, deploy the new release tag to Azure Container Apps by manually running the `Deploy Azure Container Apps` workflow:
 
 ```sh
-gh workflow run deploy-azure.yml -f tag=0.5.0
+gh workflow run deploy-azure.yml -f tag=0.5.0 --ref main
 ```
 
 Configure these repository secrets for Azure OpenID Connect login:
