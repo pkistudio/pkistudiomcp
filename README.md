@@ -98,6 +98,21 @@ docker run --rm -p 3000:3000 pkistudio/pkistudiomcp:latest
 
 The Docker image starts the Streamable HTTP server by default. Its MCP endpoint is `http://127.0.0.1:3000/mcp`, and its health check is `http://127.0.0.1:3000/healthz`.
 
+## WordPress Release Posts
+
+Publishing a GitHub Release automatically creates or updates a WordPress.com post through the `Publish release to WordPress` workflow.
+
+Configure these repository secrets before publishing a release:
+
+- `WPCOM_ACCESS_TOKEN`
+- `WPCOM_SITE_ID`
+
+Configure this optional repository variable when release posts should be assigned to a WordPress category:
+
+- `WP_RELEASE_CATEGORY_ID`
+
+The workflow uses a stable slug in the form `pkistudiomcp-vX.Y.Z`, so rerunning publication for the same release updates the existing post instead of creating a duplicate.
+
 ## Azure Container Apps Deployment
 
 The public Azure Container Apps deployment is available at:
