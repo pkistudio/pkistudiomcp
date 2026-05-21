@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 
 import {
+  createAsn1Instance,
+  parseAsn1DefinitionTool,
+  validateAsn1Instance,
+} from "../dist/asn1-builder.js";
+import {
   certificateMatchesKey,
   createCsr,
   createSelfSignedCertificate,
@@ -15,6 +20,29 @@ import { safeFetchBytes } from "../dist/safe-fetch.js";
 
 const parsed = parseAsn1({ data: "3003020101", format: "hex" });
 assert.equal(parsed.nodes[0]?.tagName, "SEQUENCE");
+
+const builderDefinition = "Example DEFINITIONS ::= BEGIN Person ::= SEQUENCE { name UTF8String, age INTEGER OPTIONAL } END";
+const parsedDefinition = parseAsn1DefinitionTool({ definition: builderDefinition });
+assert.equal(parsedDefinition.moduleName, "Example");
+assert.deepEqual(parsedDefinition.typeNames, ["Person"]);
+
+const invalidInstance = validateAsn1Instance({
+  definition: builderDefinition,
+  typeName: "Person",
+  input: { age: "not an integer" },
+});
+assert.equal(invalidInstance.hasErrors, true);
+assert.equal(invalidInstance.instanceDiagnostics[0]?.code, "missing-field");
+
+const createdInstance = createAsn1Instance({
+  definition: builderDefinition,
+  typeName: "Person",
+  input: { name: "Alice", age: 42 },
+  includeDerSummary: true,
+});
+assert.equal(createdInstance.built, true);
+assert.equal(createdInstance.data, "300a0c05416c69636502012a");
+assert.equal(createdInstance.derSummary?.topLevelNodes[0]?.tagName, "SEQUENCE");
 
 const generated = await generateKeyPair({ algorithm: "rsassa-pkcs1-v1_5-2048", encoding: "base64" });
 assert.equal(generated.keyInfo.label, "RSA 2048");
@@ -100,6 +128,7 @@ console.log(JSON.stringify({
   csrLength: csr.length,
   certificateMatches: certificateMatch.matches,
   certificateRoot: parsedCertificate.document.root.kind,
+  asn1BuilderDer: createdInstance.data,
   pkcs12Length: pkcs12.length,
   importedKeys: imported.keyCount,
 }));

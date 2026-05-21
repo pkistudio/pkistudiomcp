@@ -46,6 +46,7 @@
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "@pkistudio/asn1instancebuilder": "^0.1.2",
     "@pkistudio/certgadgets": "^0.1.3",
     "@pkistudio/pkistudiojs": "^0.6.0",
     "@pkistudio/pvkgadgets": "^0.4.1",

@@ -5,6 +5,12 @@ import { pathToFileURL } from "node:url";
 import { z } from "zod";
 
 import {
+  createAsn1Instance,
+  listAsn1BuilderFeatures,
+  parseAsn1DefinitionTool,
+  validateAsn1Instance,
+} from "./asn1-builder.js";
+import {
   fetchCertificateNetworkResources,
   parseCertificate,
 } from "./certificates.js";
@@ -53,6 +59,9 @@ const asn1InputSchema = {
 
 const outputEncodingSchema = z.enum(["hex", "base64"]).default("hex").describe("Output encoding for DER or value bytes.");
 const optionalOutputEncodingSchema = z.enum(["hex", "base64"]).optional().describe("Output encoding for returned bytes.");
+const asn1BuilderSchemaModelSchema = z.record(z.string(), z.unknown()).optional().describe("ASN.1 Instance Builder Schema Model JSON. Provide this or definition.");
+const asn1BuilderDefinitionSchema = z.string().min(1).optional().describe("Supported ASN.1 definition subset text. Provide this or schema.");
+const asn1BuilderTypeNameSchema = z.string().min(1).describe("Defined ASN.1 type name to validate or build.");
 const hashAlgorithmSchema = z.enum(["SHA-256", "SHA-384", "SHA-512"]).default("SHA-256").describe("Hash algorithm for signing.");
 const keyAlgorithmSchema = z.enum([
   "rsassa-pkcs1-v1_5-2048",
@@ -214,6 +223,60 @@ server.registerTool(
     },
   },
   async ({ oid }) => jsonToolResult(resolveOid(oid)),
+);
+
+server.registerTool(
+  "parse_asn1_definition",
+  {
+    title: "Parse ASN.1 Definition",
+    description: "Parse a supported ASN.1 definition subset into ASN.1 Instance Builder Schema Model JSON and return defined type names.",
+    inputSchema: {
+      definition: z.string().min(1).describe("Supported ASN.1 definition subset text."),
+    },
+  },
+  async (input) => jsonToolResult(parseAsn1DefinitionTool(input)),
+);
+
+server.registerTool(
+  "validate_asn1_instance",
+  {
+    title: "Validate ASN.1 Instance",
+    description: "Validate JSON instance input against a selected type in a supported ASN.1 definition subset or Schema Model JSON.",
+    inputSchema: {
+      definition: asn1BuilderDefinitionSchema,
+      schema: asn1BuilderSchemaModelSchema,
+      typeName: asn1BuilderTypeNameSchema,
+      input: z.unknown().describe("JSON instance input for the selected type."),
+    },
+  },
+  async (input) => jsonToolResult(validateAsn1Instance(input)),
+);
+
+server.registerTool(
+  "create_asn1_instance",
+  {
+    title: "Create ASN.1 Instance",
+    description: "Build DER bytes from JSON instance input and a selected type in a supported ASN.1 definition subset or Schema Model JSON.",
+    inputSchema: {
+      definition: asn1BuilderDefinitionSchema,
+      schema: asn1BuilderSchemaModelSchema,
+      typeName: asn1BuilderTypeNameSchema,
+      input: z.unknown().describe("JSON instance input for the selected type."),
+      encoding: outputEncodingSchema,
+      includeDerSummary: z.boolean().default(false).describe("Include a compact parse summary of the generated DER."),
+    },
+  },
+  async (input) => jsonToolResult(createAsn1Instance(input)),
+);
+
+server.registerTool(
+  "list_asn1_builder_features",
+  {
+    title: "List ASN.1 Builder Features",
+    description: "List the supported ASN.1 Instance Builder subset, JSON input shapes, and known limitations.",
+    inputSchema: {},
+  },
+  async () => jsonToolResult(listAsn1BuilderFeatures()),
 );
 
 server.registerTool(
