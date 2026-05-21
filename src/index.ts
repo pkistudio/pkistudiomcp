@@ -8,6 +8,7 @@ import {
   createAsn1Instance,
   listAsn1BuilderFeatures,
   parseAsn1DefinitionTool,
+  validateAsn1Schema,
   validateAsn1Instance,
 } from "./asn1-builder.js";
 import {
@@ -250,6 +251,19 @@ server.registerTool(
     },
   },
   async (input) => jsonToolResult(validateAsn1Instance(input)),
+);
+
+server.registerTool(
+  "validate_asn1_schema",
+  {
+    title: "Validate ASN.1 Schema",
+    description: "Validate a supported ASN.1 definition subset or ASN.1 Instance Builder Schema Model JSON and return schema diagnostics.",
+    inputSchema: {
+      definition: asn1BuilderDefinitionSchema,
+      schema: asn1BuilderSchemaModelSchema,
+    },
+  },
+  async (input) => jsonToolResult(validateAsn1Schema(input)),
 );
 
 server.registerTool(

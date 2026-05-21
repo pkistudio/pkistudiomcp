@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   createAsn1Instance,
   parseAsn1DefinitionTool,
+  validateAsn1Schema,
   validateAsn1Instance,
 } from "../dist/asn1-builder.js";
 import {
@@ -25,6 +26,12 @@ const builderDefinition = "Example DEFINITIONS ::= BEGIN Person ::= SEQUENCE { n
 const parsedDefinition = parseAsn1DefinitionTool({ definition: builderDefinition });
 assert.equal(parsedDefinition.moduleName, "Example");
 assert.deepEqual(parsedDefinition.typeNames, ["Person"]);
+
+const invalidSchema = validateAsn1Schema({
+  definition: "Broken DEFINITIONS ::= BEGIN Item ::= SEQUENCE { value INTEGER, value UTF8String } END",
+});
+assert.equal(invalidSchema.hasErrors, true);
+assert.equal(invalidSchema.schemaDiagnostics[0]?.code, "duplicate-field");
 
 const invalidInstance = validateAsn1Instance({
   definition: builderDefinition,

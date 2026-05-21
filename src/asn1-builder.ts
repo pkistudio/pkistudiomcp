@@ -24,6 +24,8 @@ type ParseDefinitionInput = {
   definition: string;
 };
 
+type ValidateSchemaInput = SchemaInput;
+
 type ValidateInstanceInput = SchemaInput & {
   typeName: string;
   input: unknown;
@@ -84,6 +86,18 @@ export function parseAsn1DefinitionTool(input: ParseDefinitionInput) {
 
   return {
     schema,
+    moduleName: schema.name,
+    typeNames: getTypeNames(schema),
+    schemaDiagnostics,
+    hasErrors: hasDiagnosticErrors(schemaDiagnostics),
+  };
+}
+
+export function validateAsn1Schema(input: ValidateSchemaInput) {
+  const schema = readSchema(input);
+  const schemaDiagnostics = validateSchemaModule(schema);
+
+  return {
     moduleName: schema.name,
     typeNames: getTypeNames(schema),
     schemaDiagnostics,

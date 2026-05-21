@@ -54,6 +54,7 @@ After installing this MCP server, you can ask questions like:
 - `decode_oid_value`: Decode ASN.1 OBJECT IDENTIFIER value bytes into dotted OID text.
 - `resolve_oid`: Resolve an OID using the OID names bundled with PkiStudioJS.
 - `parse_asn1_definition`: Parse a supported ASN.1 definition subset into ASN.1 Instance Builder Schema Model JSON.
+- `validate_asn1_schema`: Validate a supported ASN.1 definition subset or ASN.1 Instance Builder Schema Model JSON and return schema diagnostics.
 - `validate_asn1_instance`: Validate JSON instance input against a selected type in a supported ASN.1 definition subset or Schema Model JSON.
 - `create_asn1_instance`: Build DER bytes from JSON instance input and a selected type in a supported ASN.1 definition subset or Schema Model JSON.
 - `list_asn1_builder_features`: List the supported ASN.1 Instance Builder subset, JSON input shapes, and known limitations.
