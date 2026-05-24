@@ -144,7 +144,7 @@ https://pkistudiomcp.blackfield-fee115fa.japaneast.azurecontainerapps.io/mcp
 When the Docker image is updated by the release workflow, deploy the new release tag to Azure Container Apps by manually running the `Deploy Azure Container Apps` workflow:
 
 ```sh
-gh workflow run deploy-azure.yml -f tag=0.5.0 --ref main
+gh workflow run deploy-azure.yml -f tag=0.7.0 --ref main
 ```
 
 The workflow fails during `Validate Azure configuration` until the required repository secrets and variables below are configured.
@@ -203,7 +203,7 @@ curl -s -X POST \
 Pin a release version when reproducibility matters:
 
 ```sh
-docker run --rm -p 3000:3000 pkistudio/pkistudiomcp:0.5.0
+docker run --rm -p 3000:3000 pkistudio/pkistudiomcp:0.7.0
 ```
 
 To run the stdio server from the image instead:
