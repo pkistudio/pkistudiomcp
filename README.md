@@ -14,16 +14,18 @@ Use it to inspect, summarize, decode, generate, and verify:
 
 It is useful for certificate debugging, PKI development, ASN.1 inspection, and AI-assisted cryptography tooling.
 
-Under the hood, `@pkistudio/pkistudiomcp` exposes PkiStudioJS ASN.1 tools, CertGadgets certificate inspection helpers, and Private Key Gadgets PKI key material helpers as MCP tools.
+Under the hood, `@pkistudio/pkistudiomcp` exposes PkiStudioJS ASN.1 tools, ASN.1 Instance Builder schema/DER creation helpers, ASN.1 Definition Sifter candidate matching, CertGadgets certificate inspection helpers, and Private Key Gadgets PKI key material helpers as MCP tools.
 
-The package uses the published PkiStudioJS, CertGadgets, and Private Key Gadgets npm APIs:
+The package uses the published PkiStudioJS, ASN.1 Instance Builder, ASN.1 Definition Sifter, CertGadgets, and Private Key Gadgets npm APIs:
 
 ```json
 {
 	"dependencies": {
-		"@pkistudio/certgadgets": "^0.1.3",
-		"@pkistudio/pkistudiojs": "^0.6.0",
-		"@pkistudio/pvkgadgets": "^0.4.1"
+		"@pkistudio/asn1defsifter": "^0.1.3",
+		"@pkistudio/asn1instancebuilder": "^0.1.2",
+		"@pkistudio/certgadgets": "^0.1.4",
+		"@pkistudio/pkistudiojs": "^0.6.1",
+		"@pkistudio/pvkgadgets": "^0.4.2"
 	}
 }
 ```
@@ -58,6 +60,9 @@ After installing this MCP server, you can ask questions like:
 - `validate_asn1_instance`: Validate JSON instance input against a selected type in a supported ASN.1 definition subset or Schema Model JSON.
 - `create_asn1_instance`: Build DER bytes from JSON instance input and a selected type in a supported ASN.1 definition subset or Schema Model JSON.
 - `list_asn1_builder_features`: List the supported ASN.1 Instance Builder subset, JSON input shapes, and known limitations.
+- `sift_asn1_definition_candidates`: Rank ASN.1 definition candidates for ASN.1 data using custom ASN.1 definitions or the built-in PKI component corpus.
+- `sift_pki_asn1_definition_candidates`: Rank PKI ASN.1 definition candidates using the built-in ASN.1 Definition Sifter PKI corpus and optional profile filters.
+- `list_asn1_definition_sifter_features`: List ASN.1 Definition Sifter tool scope, PKI profiles, and candidate report options.
 - `recognize_key_material`: Recognize a PKCS#8 private key or SPKI public key and report its key family, label, and capabilities.
 - `list_supported_key_algorithms`: List WebCrypto key pair algorithms supported by the current runtime for key generation.
 - `generate_key_pair`: Generate a key pair and return the private key as PKCS#8 DER and public key as SPKI DER.
@@ -73,6 +78,8 @@ After installing this MCP server, you can ask questions like:
 Input is string-based. Use `format: "auto"` to let PkiStudioJS detect the input, or provide one of `der`, `ber`, `pem`, `base64`, `headerless-pem`, or `hex`.
 
 The ASN.1 Instance Builder tools create DER from a supported ASN.1 subset rather than a full ASN.1 compiler. They currently target practical PKI-oriented definitions with primitive types, constructed types, defined type references, low-form context-specific tags, module tag defaults, simple defaults, binary inputs, OID names, and schema/instance diagnostics.
+
+The ASN.1 Definition Sifter tools compare DER/TLV fragments with ASN.1 Schema Model candidates and return ranked type matches with scores, confidence labels, evidence, diagnostics, ambiguity notes, and optional bounded subtree reports. Use the generic sifter with custom ASN.1 definitions, or the PKI sifter with built-in `components`, `x509`, `pkcs10`, `pkcs8`, and `cms` profile filters.
 
 ## Development
 

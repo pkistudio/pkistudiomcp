@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 
 import {
+  listAsn1DefinitionSifterFeatures,
+  siftAsn1DefinitionCandidates,
+  siftPkiAsn1DefinitionCandidates,
+} from "../dist/asn1-defsifter.js";
+import {
   createAsn1Instance,
   parseAsn1DefinitionTool,
   validateAsn1Schema,
@@ -50,6 +55,28 @@ const createdInstance = createAsn1Instance({
 assert.equal(createdInstance.built, true);
 assert.equal(createdInstance.data, "300a0c05416c69636502012a");
 assert.equal(createdInstance.derSummary?.topLevelNodes[0]?.tagName, "SEQUENCE");
+
+const sifterFeatures = listAsn1DefinitionSifterFeatures();
+assert.ok(sifterFeatures.pkiProfiles.x509.includes("Certificate"));
+
+const algorithmIdentifier = "300d06092a864886f70d01010b0500";
+const pkiSifterReport = await siftPkiAsn1DefinitionCandidates({
+  data: algorithmIdentifier,
+  format: "hex",
+  profiles: ["components"],
+  maxResults: 3,
+});
+assert.equal(pkiSifterReport.roots[0]?.summary.bestCandidate?.typeName, "AlgorithmIdentifier");
+
+const customSifterReport = await siftAsn1DefinitionCandidates({
+  data: algorithmIdentifier,
+  format: "hex",
+  definition: "Custom DEFINITIONS ::= BEGIN AlgorithmIdentifier ::= SEQUENCE { algorithm OBJECT IDENTIFIER, parameters NULL OPTIONAL } END",
+  includeTypes: ["AlgorithmIdentifier"],
+  maxResults: 3,
+});
+assert.equal(customSifterReport.corpus, "custom-definitions");
+assert.equal(customSifterReport.roots[0]?.summary.bestCandidate?.typeName, "AlgorithmIdentifier");
 
 const generated = await generateKeyPair({ algorithm: "rsassa-pkcs1-v1_5-2048", encoding: "base64" });
 assert.equal(generated.keyInfo.label, "RSA 2048");
@@ -136,6 +163,7 @@ console.log(JSON.stringify({
   certificateMatches: certificateMatch.matches,
   certificateRoot: parsedCertificate.document.root.kind,
   asn1BuilderDer: createdInstance.data,
+  asn1SifterBestCandidate: pkiSifterReport.roots[0]?.summary.bestCandidate?.typeName,
   pkcs12Length: pkcs12.length,
   importedKeys: imported.keyCount,
 }));

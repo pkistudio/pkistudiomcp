@@ -5,6 +5,11 @@ import { pathToFileURL } from "node:url";
 import { z } from "zod";
 
 import {
+  listAsn1DefinitionSifterFeatures,
+  siftAsn1DefinitionCandidates,
+  siftPkiAsn1DefinitionCandidates,
+} from "./asn1-defsifter.js";
+import {
   createAsn1Instance,
   listAsn1BuilderFeatures,
   parseAsn1DefinitionTool,
@@ -63,6 +68,7 @@ const optionalOutputEncodingSchema = z.enum(["hex", "base64"]).optional().descri
 const asn1BuilderSchemaModelSchema = z.record(z.string(), z.unknown()).optional().describe("ASN.1 Instance Builder Schema Model JSON. Provide this or definition.");
 const asn1BuilderDefinitionSchema = z.string().min(1).optional().describe("Supported ASN.1 definition subset text. Provide this or schema.");
 const asn1BuilderTypeNameSchema = z.string().min(1).describe("Defined ASN.1 type name to validate or build.");
+const asn1DefinitionSifterProfileSchema = z.enum(["components", "x509", "pkcs10", "pkcs8", "cms"]);
 const hashAlgorithmSchema = z.enum(["SHA-256", "SHA-384", "SHA-512"]).default("SHA-256").describe("Hash algorithm for signing.");
 const keyAlgorithmSchema = z.enum([
   "rsassa-pkcs1-v1_5-2048",
@@ -291,6 +297,63 @@ server.registerTool(
     inputSchema: {},
   },
   async () => jsonToolResult(listAsn1BuilderFeatures()),
+);
+
+server.registerTool(
+  "sift_asn1_definition_candidates",
+  {
+    title: "Sift ASN.1 Definition Candidates",
+    description: "Rank ASN.1 definition candidates for ASN.1 data using custom ASN.1 definitions or the built-in PKI component corpus.",
+    inputSchema: {
+      data: asn1InputSchema.data,
+      format: inputFormatSchema,
+      definition: z.string().min(1).optional().describe("Optional supported ASN.1 definition text for a custom corpus."),
+      definitions: z.array(z.string().min(1)).optional().describe("Optional supported ASN.1 definition texts for a custom corpus."),
+      maxResults: z.number().int().min(1).max(100).default(10),
+      minScore: z.number().min(0).max(1).optional().describe("Suppress candidates below this score."),
+      includeTypes: z.array(z.string().min(1)).optional().describe("Limit matching to local or qualified ASN.1 type names."),
+      excludeTypes: z.array(z.string().min(1)).optional().describe("Exclude local or qualified ASN.1 type names."),
+      includeNodes: z.boolean().default(false).describe("Include parsed TLV nodes in the report."),
+      includeSubtrees: z.boolean().default(false).describe("Include bounded candidate reports for child TLV nodes."),
+      includeEmptySubtrees: z.boolean().default(false).describe("Include subtree reports even when no candidates are found."),
+      maxSubtreeDepth: z.number().int().min(0).max(16).default(3),
+      maxSubtreeReports: z.number().int().min(1).max(200).default(20),
+    },
+  },
+  async (input) => jsonToolResult(await siftAsn1DefinitionCandidates(input)),
+);
+
+server.registerTool(
+  "sift_pki_asn1_definition_candidates",
+  {
+    title: "Sift PKI ASN.1 Definition Candidates",
+    description: "Rank PKI ASN.1 definition candidates using the built-in ASN.1 Definition Sifter PKI corpus and optional profile filters.",
+    inputSchema: {
+      data: asn1InputSchema.data,
+      format: inputFormatSchema,
+      profiles: z.array(asn1DefinitionSifterProfileSchema).optional().describe("Optional PKI profiles used to limit matching."),
+      maxResults: z.number().int().min(1).max(100).default(10),
+      minScore: z.number().min(0).max(1).optional().describe("Suppress candidates below this score."),
+      includeTypes: z.array(z.string().min(1)).optional().describe("Additional local or qualified ASN.1 type names to include."),
+      excludeTypes: z.array(z.string().min(1)).optional().describe("Exclude local or qualified ASN.1 type names."),
+      includeNodes: z.boolean().default(false).describe("Include parsed TLV nodes in the report."),
+      includeSubtrees: z.boolean().default(false).describe("Include bounded candidate reports for child TLV nodes."),
+      includeEmptySubtrees: z.boolean().default(false).describe("Include subtree reports even when no candidates are found."),
+      maxSubtreeDepth: z.number().int().min(0).max(16).default(3),
+      maxSubtreeReports: z.number().int().min(1).max(200).default(20),
+    },
+  },
+  async (input) => jsonToolResult(await siftPkiAsn1DefinitionCandidates(input)),
+);
+
+server.registerTool(
+  "list_asn1_definition_sifter_features",
+  {
+    title: "List ASN.1 Definition Sifter Features",
+    description: "List ASN.1 Definition Sifter tool scope, PKI profiles, and candidate report options.",
+    inputSchema: {},
+  },
+  async () => jsonToolResult(listAsn1DefinitionSifterFeatures()),
 );
 
 server.registerTool(
