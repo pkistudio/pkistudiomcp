@@ -131,6 +131,7 @@ For pkistudiomcp version bumps, update at least:
 - `package-lock.json` root package version entries
 - `src/index.ts` MCP server metadata `version`
 - `README.md` when usage, installation, release, or version documentation changes
+- `README.md` fixed release examples such as Azure deployment commands and pinned Docker image tags, so they reference the new `X.Y.Z` release instead of an older release
 
 Keep the package name as `@pkistudio/pkistudiomcp`. Keep the CLI bin name as `pkistudiomcp` unless the user explicitly asks to change the executable name.
 
@@ -168,6 +169,7 @@ Keep the package name as `@pkistudio/pkistudiomcp`. Keep the CLI bin name as `pk
    - If `version` is pending, leave existing released version references unchanged during implementation and note the deferred version bump in the issue and PR.
    - Keep MCP tool schemas and descriptions consistent with the implemented behavior.
    - Keep README MCP client examples aligned with the published npm package name.
+   - When README changes are part of the release, check for stale fixed version examples such as `gh workflow run deploy-azure.yml -f tag=...` and `docker run ... pkistudio/pkistudiomcp:<version>`.
 
 5. Verify Locally
    - Run the standard checks:
@@ -210,6 +212,7 @@ Keep the package name as `@pkistudio/pkistudiomcp`. Keep the CLI bin name as `pk
     - If `version` was pending, stop and ask for the final version before changing files, publishing npm, tagging, or publishing a release.
     - Once the final version is chosen, normalize it to both `X.Y.Z` and `vX.Y.Z` forms and check that the npm version and git tag do not already exist.
     - If version references were deferred, create a focused version bump commit on `main` or on a release-prep branch/PR if the user wants review before publication.
+   - Before tagging, search README for older release literals and update release-specific examples to `X.Y.Z` when they are intended to show the current release.
 
 11. Tag, GitHub Release, npm, and Docker Publication
    - Create an annotated tag `vX.Y.Z` on the released `main` commit.
@@ -242,6 +245,7 @@ Keep the package name as `@pkistudio/pkistudiomcp`. Keep the CLI bin name as `pk
      - tag exists on `main` HEAD.
      - GitHub Release is published.
      - relevant GitHub Actions completed or are still running.
+     - README release-specific examples do not still point to an older version when they should point to `X.Y.Z`.
    - Final response must include issue, PR, npm package version, Docker image status, release, tag, verification summary, Actions status, and the manual Azure deployment reminder.
 
 ## Final Response Format
