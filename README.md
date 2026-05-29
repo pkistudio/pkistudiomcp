@@ -1,108 +1,67 @@
-# @pkistudio/pkistudiomcp
+# PKI Studio MCP
 
-PKI Studio MCP is a local MCP server that lets AI assistants inspect and work with ASN.1, DER, PEM, X.509 certificates, CSRs, PKCS#8, SPKI, and PKCS#12 data. It supports stdio and Streamable HTTP transports.
+AI assistants can inspect certificates, keys, DER/PEM, OIDs, CSRs, and PKCS#12 files through MCP.
 
-Use it to inspect, summarize, decode, generate, and verify:
+`@pkistudio/pkistudiomcp` supports both stdio and Streamable HTTP transports. It exposes PKI Studio, CertGadgets, Private Key Gadgets, ASN.1 Instance Builder, and ASN.1 Definition Sifter capabilities as MCP tools.
 
-- ASN.1 / DER / BER / PEM data
-- OBJECT IDENTIFIERs
-- PKCS#8 private keys
-- SPKI public keys
-- X.509 certificates
-- PKCS#10 CSRs
-- PKCS#12 / PFX files
+## Quick Start: VS Code / GitHub Copilot
 
-It is useful for certificate debugging, PKI development, ASN.1 inspection, and AI-assisted cryptography tooling.
-
-Under the hood, `@pkistudio/pkistudiomcp` exposes PkiStudioJS ASN.1 tools, ASN.1 Instance Builder schema/DER creation helpers, ASN.1 Definition Sifter candidate matching, CertGadgets certificate inspection helpers, and Private Key Gadgets PKI key material helpers as MCP tools.
-
-The package uses the published PkiStudioJS, ASN.1 Instance Builder, ASN.1 Definition Sifter, CertGadgets, and Private Key Gadgets npm APIs:
+Create `.vscode/mcp.json`:
 
 ```json
 {
-	"dependencies": {
-		"@pkistudio/asn1defsifter": "^0.1.3",
-		"@pkistudio/asn1instancebuilder": "^0.1.2",
-		"@pkistudio/certgadgets": "^0.1.4",
-		"@pkistudio/pkistudiojs": "^0.6.1",
-		"@pkistudio/pvkgadgets": "^0.4.2"
-	}
+  "servers": {
+    "pkistudio": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@pkistudio/pkistudiomcp"]
+    }
+  }
 }
 ```
 
-PkiStudioJS `0.6.x` is published as the scoped `@pkistudio/pkistudiojs` package. Its browser viewer also supports native read-only mode through `viewer.init({ editable: false })` and `setEditable(false)`. This MCP server uses the PkiStudioJS Core API rather than embedding the browser viewer, so the ASN.1 tools remain string-in/string-out MCP operations and do not expose a separate viewer editability option.
+Then open Copilot Chat Agent mode and ask:
 
-## What can I ask my AI assistant?
+> Parse this PEM certificate and summarize the issuer, subject, validity, extensions, and ASN.1 structure.
 
-After installing this MCP server, you can ask questions like:
+## Quick Start: Claude Desktop
 
-- Parse this PEM certificate and summarize its structure.
-- Show me all OIDs found in this DER data.
-- Tell me whether this private key matches this certificate.
-- Create a CSR for this subject DN.
-- Generate a self-signed certificate for testing.
-- Read this PKCS#12/PFX file and list contained certificates and keys.
-- Decode this OBJECT IDENTIFIER value.
+Add this server to your Claude Desktop MCP configuration:
 
-## Tools
+```json
+{
+  "mcpServers": {
+    "pkistudio": {
+      "command": "npx",
+      "args": ["-y", "@pkistudio/pkistudiomcp"]
+    }
+  }
+}
+```
 
-- `parse_asn1`: Parse DER, BER, PEM, HEX, base64, or headerless PEM input and return a JSON ASN.1 tree.
-- `summarize_asn1`: Return a compact summary with tag counts, discovered OIDs, and top-level nodes.
-- `describe_node`: Describe one parsed ASN.1 node by node id.
-- `extract_asn1_node`: Extract one parsed ASN.1 node and its subtree as DER bytes.
-- `normalize_asn1_input`: Decode supported ASN.1 input and return round-trip re-encoded bytes.
-- `asn1_node_value`: Return a node's decoded display value and raw value bytes.
-- `encode_oid`: Encode an OID string into ASN.1 OBJECT IDENTIFIER value bytes.
-- `decode_oid_value`: Decode ASN.1 OBJECT IDENTIFIER value bytes into dotted OID text.
-- `resolve_oid`: Resolve an OID using the OID names bundled with PkiStudioJS.
-- `parse_asn1_definition`: Parse a supported ASN.1 definition subset into ASN.1 Instance Builder Schema Model JSON.
-- `validate_asn1_schema`: Validate a supported ASN.1 definition subset or ASN.1 Instance Builder Schema Model JSON and return schema diagnostics.
-- `validate_asn1_instance`: Validate JSON instance input against a selected type in a supported ASN.1 definition subset or Schema Model JSON.
-- `create_asn1_instance`: Build DER bytes from JSON instance input and a selected type in a supported ASN.1 definition subset or Schema Model JSON.
-- `list_asn1_builder_features`: List the supported ASN.1 Instance Builder subset, JSON input shapes, and known limitations.
-- `sift_asn1_definition_candidates`: Rank ASN.1 definition candidates for ASN.1 data using custom ASN.1 definitions or the built-in PKI component corpus.
-- `sift_pki_asn1_definition_candidates`: Rank PKI ASN.1 definition candidates using the built-in ASN.1 Definition Sifter PKI corpus and optional profile filters.
-- `list_asn1_definition_sifter_features`: List ASN.1 Definition Sifter tool scope, PKI profiles, and candidate report options.
-- `recognize_key_material`: Recognize a PKCS#8 private key or SPKI public key and report its key family, label, and capabilities.
-- `list_supported_key_algorithms`: List WebCrypto key pair algorithms supported by the current runtime for key generation.
-- `generate_key_pair`: Generate a key pair and return the private key as PKCS#8 DER and public key as SPKI DER.
-- `verify_key_pair`: Verify that a PKCS#8 private key matches an SPKI public key by signing and verifying sample data.
-- `certificate_matches_key`: Check whether an X.509 certificate public key matches supplied public key bytes or a PKCS#8 private key.
-- `parse_certificate`: Parse an X.509 certificate with CertGadgets and return its structure, details, and CDP/AIA/OCSP network plans without network access.
-- `fetch_certificate_network_resources`: Fetch HTTP(S) CDP/AIA/OCSP-related resources discovered in an X.509 certificate. This tool performs external network access through an SSRF-aware fetch layer that blocks private, loopback, link-local, reserved, and non-default-port targets.
-- `create_csr`: Create a PKCS#10 certificate signing request from a private key, public key, and subject DN.
-- `create_self_signed_certificate`: Create a self-signed X.509 certificate from a private key, public key, and subject DN.
-- `read_pkcs12`: Read PKCS#12/PFX data and return contained private keys, public keys, and certificates.
-- `write_pkcs12`: Create PKCS#12/PFX data from private keys and optional certificates.
+## Run Locally
 
-Input is string-based. Use `format: "auto"` to let PkiStudioJS detect the input, or provide one of `der`, `ber`, `pem`, `base64`, `headerless-pem`, or `hex`.
+Run the stdio MCP server from npm:
 
-The ASN.1 Instance Builder tools create DER from a supported ASN.1 subset rather than a full ASN.1 compiler. They currently target practical PKI-oriented definitions with primitive types, constructed types, defined type references, low-form context-specific tags, module tag defaults, simple defaults, binary inputs, OID names, and schema/instance diagnostics.
+```sh
+npx -y @pkistudio/pkistudiomcp
+```
 
-The ASN.1 Definition Sifter tools compare DER/TLV fragments with ASN.1 Schema Model candidates and return ranked type matches with scores, confidence labels, evidence, diagnostics, ambiguity notes, and optional bounded subtree reports. Use the generic sifter with custom ASN.1 definitions, or the PKI sifter with built-in `components`, `x509`, `pkcs10`, `pkcs8`, and `cms` profile filters.
+Run the Streamable HTTP server from npm:
 
-## Development
+```sh
+npx -y --package @pkistudio/pkistudiomcp pkistudiomcp-http
+```
+
+For a local checkout:
 
 ```sh
 npm install
 npm run check
+npm start
 ```
 
-Run the server locally:
-
-```sh
-npm run build
-node dist/index.js
-```
-
-Run the Streamable HTTP server locally:
-
-```sh
-npm run build
-node dist/http.js
-```
-
-The HTTP MCP endpoint defaults to `http://127.0.0.1:3000/mcp`, and health checks are available at `http://127.0.0.1:3000/healthz`. Configure the MCP endpoint path with `PKISTUDIOMCP_HTTP_PATH`, and configure the bind address with `PKISTUDIOMCP_HTTP_HOST` and `PKISTUDIOMCP_HTTP_PORT`.
+## Docker
 
 Run the published Docker image:
 
@@ -110,177 +69,43 @@ Run the published Docker image:
 docker run --rm -p 3000:3000 pkistudio/pkistudiomcp:latest
 ```
 
-The Docker image starts the Streamable HTTP server by default. Its MCP endpoint is `http://127.0.0.1:3000/mcp`, and its health check is `http://127.0.0.1:3000/healthz`.
-
-## WordPress Release Posts
-
-Publishing a GitHub Release automatically creates or updates a WordPress.com post through the `Publish release to WordPress` workflow.
-
-Configure these repository secrets before publishing a release:
-
-- `WPCOM_ACCESS_TOKEN`
-- `WPCOM_SITE_ID`
-
-Configure this optional repository variable when release posts should be assigned to a WordPress category:
-
-- `WP_RELEASE_CATEGORY_ID`
-
-The workflow uses a stable slug in the form `pkistudiomcp-vX.Y.Z`, so rerunning publication for the same release updates the existing post instead of creating a duplicate.
-
-## Azure Container Apps Deployment
-
-The public Azure Container Apps deployment is available at:
-
-```text
-https://pkistudiomcp.blackfield-fee115fa.japaneast.azurecontainerapps.io
-```
-
-The Streamable HTTP MCP endpoint is:
-
-```text
-https://pkistudiomcp.blackfield-fee115fa.japaneast.azurecontainerapps.io/mcp
-```
-
-When the Docker image is updated by the release workflow, deploy the new release tag to Azure Container Apps by manually running the `Deploy Azure Container Apps` workflow:
-
-```sh
-gh workflow run deploy-azure.yml -f tag=0.7.0 --ref main
-```
-
-The workflow fails during `Validate Azure configuration` until the required repository secrets and variables below are configured.
-
-Configure these repository secrets for Azure OpenID Connect login:
-
-- `AZURE_CLIENT_ID`
-- `AZURE_TENANT_ID`
-- `AZURE_SUBSCRIPTION_ID`
-
-Configure these repository variables:
-
-- `AZURE_RESOURCE_GROUP` for the Container Apps resource group.
-- `AZURE_CONTAINER_APP_NAME` when the app name is not `pkistudiomcp`.
-- `AZURE_HEALTH_URL` when the health endpoint differs from the public `/healthz` URL below.
-
-The deployment workflow updates the Container App with:
-
-```sh
-az containerapp update --name pkistudiomcp --resource-group <ResourceGroupID> --image docker.io/pkistudio/pkistudiomcp:<tag>
-```
-
-The update command itself does not contain credentials. The resource group name or ID is still environment metadata, so keep any real value out of public docs unless it is intentionally public.
-
-Smoke test the deployed service with:
-
-```sh
-curl -i https://pkistudiomcp.blackfield-fee115fa.japaneast.azurecontainerapps.io/healthz
-```
-
-List the available MCP tools:
-
-```sh
-curl -s -X POST \
-	-H "Content-Type: application/json" \
-	-H "Accept: application/json, text/event-stream" \
-	-d '{"method":"tools/list","params":{},"jsonrpc":"2.0","id":2}' \
-	https://pkistudiomcp.blackfield-fee115fa.japaneast.azurecontainerapps.io/mcp \
-	| grep '^data:' \
-	| sed 's/^data: //' \
-	| jq -r '.result.tools[].name'
-```
-
-Call a tool with a tiny ASN.1 sample:
-
-```sh
-curl -s -X POST \
-	-H "Content-Type: application/json" \
-	-H "Accept: application/json, text/event-stream" \
-	-d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"parse_asn1","arguments":{"data":"3003020101","format":"hex"}}}' \
-	https://pkistudiomcp.blackfield-fee115fa.japaneast.azurecontainerapps.io/mcp \
-	| grep '^data:' \
-	| sed 's/^data: //'
-```
+The Docker image starts the Streamable HTTP server by default. The MCP endpoint is `http://127.0.0.1:3000/mcp`, and health checks are available at `http://127.0.0.1:3000/healthz` and `http://127.0.0.1:3000/readyz`.
 
 Pin a release version when reproducibility matters:
 
 ```sh
-docker run --rm -p 3000:3000 pkistudio/pkistudiomcp:0.7.0
+docker run --rm -p 3000:3000 pkistudio/pkistudiomcp:0.7.1
 ```
 
-To run the stdio server from the image instead:
+## What Can I Ask?
 
-```sh
-docker run --rm -i pkistudio/pkistudiomcp:latest node dist/index.js
-```
+- Parse this PEM certificate and summarize it.
+- Show all OIDs found in this DER data.
+- Check whether this certificate matches this private key.
+- Read this PKCS#12 file and list contained certificates and keys.
+- Generate a test key pair and CSR.
+- Identify likely ASN.1 type definitions for this DER data.
+- Build DER from this ASN.1 definition and JSON instance.
 
-During development, you can also run the TypeScript entry point directly:
+## Main Tool Areas
 
-```sh
-npm run dev
-```
+- Certificate inspection: `parse_certificate`, `parse_asn1`, `resolve_oid`
+- DER / ASN.1 inspection: `parse_asn1`, `summarize_asn1`, `describe_node`, `extract_asn1_node`, `asn1_node_value`
+- OID utilities: `encode_oid`, `decode_oid_value`, `resolve_oid`
+- Key material: `recognize_key_material`, `generate_key_pair`, `verify_key_pair`, `certificate_matches_key`
+- CSR and test certificates: `create_csr`, `create_self_signed_certificate`
+- PKCS#12 / PFX: `read_pkcs12`, `write_pkcs12`
+- ASN.1 Definition Sifter: `sift_asn1_definition_candidates`, `sift_pki_asn1_definition_candidates`
+- ASN.1 Instance Builder: `parse_asn1_definition`, `validate_asn1_schema`, `validate_asn1_instance`, `create_asn1_instance`
 
-For HTTP development:
+## Security Notes
 
-```sh
-npm run dev:http
-```
+Certificate parsing, ASN.1 parsing, key recognition, and PKCS#12 processing are local operations inside the MCP server process. `fetch_certificate_network_resources` is different: it performs external HTTP(S) requests for CDP/AIA/OCSP-related resources discovered in certificates.
 
-## MCP Client Configuration
+Do not send production private keys, sensitive PKCS#12 files, or private certificate material to public demo endpoints. Even when the server processes data locally, MCP clients and AI chat histories may retain input or output.
 
-From a local checkout:
+If you expose the HTTP server beyond localhost, place it behind authentication, request size limits, rate limits, timeouts, logging, and a restrictive CORS policy. The built-in HTTP server also supports optional `PKISTUDIOMCP_HTTP_BEARER_TOKEN`, `PKISTUDIOMCP_HTTP_CORS_ORIGIN`, `PKISTUDIOMCP_HTTP_MAX_CONTENT_LENGTH`, and `PKISTUDIOMCP_HTTP_REQUEST_TIMEOUT_MS` settings.
 
-```json
-{
-	"mcpServers": {
-		"pkistudio": {
-			"command": "node",
-			"args": ["/absolute/path/to/pkistudiomcp/dist/index.js"]
-		}
-	}
-}
-```
+## Documentation
 
-After the package is published to npm:
-
-```json
-{
-	"mcpServers": {
-		"pkistudio": {
-			"command": "npx",
-			"args": ["-y", "@pkistudio/pkistudiomcp"]
-		}
-	}
-}
-```
-
-Publish the scoped package publicly:
-
-```sh
-npm publish --provenance --access public
-```
-
-Until npm publication, GitHub installation can be tested with npm-compatible clients that accept GitHub package specs:
-
-```sh
-npx github:pkistudio/pkistudiomcp
-```
-
-## Example Tool Input
-
-```json
-{
-	"data": "3003020101",
-	"format": "hex"
-}
-```
-
-Build a small DER value from an ASN.1 definition and JSON instance:
-
-```json
-{
-	"definition": "Example DEFINITIONS ::= BEGIN Person ::= SEQUENCE { name UTF8String, age INTEGER OPTIONAL } END",
-	"typeName": "Person",
-	"input": { "name": "Alice", "age": 42 },
-	"encoding": "hex",
-	"includeDerSummary": true
-}
-```
+See the [GitHub Wiki](https://github.com/pkistudio/pkistudiomcp/wiki) for detailed usage, client configuration, tool selection guidance, security notes, Docker usage, deployment notes, release process, and troubleshooting.
