@@ -107,8 +107,10 @@ const certificateNetworkResourceKindSchema = z.enum(["ocsp", "ca-issuers", "crl"
 export function createPkiStudioMcpServer(): McpServer {
   const server = new McpServer({
     name: "@pkistudio/pkistudiomcp",
-    version: "0.7.0",
+    version: "0.7.1",
   });
+
+registerPkiStudioPrompts(server);
 
 server.registerTool(
   "parse_asn1",
@@ -539,6 +541,87 @@ server.registerTool(
 );
 
   return server;
+}
+
+function registerPkiStudioPrompts(server: McpServer): void {
+  server.registerPrompt(
+    "inspect_certificate",
+    {
+      title: "Inspect Certificate",
+      description: "Guide an assistant through local X.509 certificate inspection, optional ASN.1 review, and optional network resource fetching.",
+      argsSchema: {
+        includeAsn1Structure: z.string().optional().describe("Set to true when the user wants the ASN.1 tree or DER structure included."),
+        allowNetworkFetches: z.string().optional().describe("Set to true only when the user explicitly allows fetching CDP/AIA/OCSP resources."),
+      },
+    },
+    async ({ includeAsn1Structure, allowNetworkFetches }) => promptResult([
+      "Inspect the supplied X.509 certificate with PKI Studio MCP.",
+      "Use parse_certificate first and summarize issuer, subject, serial number, validity, public key, signature algorithm, extensions, and any CDP/AIA/OCSP plans.",
+      includeAsn1Structure === "true"
+        ? "Also use parse_asn1 or summarize_asn1 to explain the DER structure and important OIDs."
+        : "Use ASN.1 tools only if the user asks for low-level DER details or if certificate parsing needs clarification.",
+      allowNetworkFetches === "true"
+        ? "The user allowed network access, so fetch_certificate_network_resources may be used for certificate-related HTTP(S) resources when useful."
+        : "Do not call fetch_certificate_network_resources unless the user explicitly asks for external network retrieval.",
+      "Call out any uncertainty, parsing errors, unusual extensions, weak algorithms, expired validity, or key usage mismatches.",
+    ]),
+  );
+
+  server.registerPrompt(
+    "compare_certificate_and_key",
+    {
+      title: "Compare Certificate And Key",
+      description: "Guide an assistant through checking whether a certificate matches a private key or public key.",
+      argsSchema: {
+        keyKind: z.string().optional().describe("Expected key material kind, such as private, public, or unknown."),
+      },
+    },
+    async ({ keyKind }) => promptResult([
+      "Compare the supplied certificate with the supplied key material using PKI Studio MCP.",
+      keyKind ? `The user described the key material as ${keyKind}.` : "If the key type is unclear, recognize the key material before comparing it.",
+      "Use certificate_matches_key for the certificate-to-key comparison.",
+      "Use recognize_key_material to explain the key family, label, and capabilities when useful.",
+      "Use verify_key_pair only when both a PKCS#8 private key and an SPKI public key are provided.",
+      "Return a concise match result, then explain the evidence and any format or parsing problems.",
+    ]),
+  );
+
+  server.registerPrompt(
+    "analyze_pkcs12",
+    {
+      title: "Analyze PKCS#12",
+      description: "Guide an assistant through reading and summarizing a PKCS#12/PFX bundle.",
+      argsSchema: {
+        includeCertificateDetails: z.string().optional().describe("Set to true when certificates inside the PFX should be parsed in detail."),
+        verifyMatches: z.string().optional().describe("Set to true when contained certificates and keys should be checked for matches."),
+      },
+    },
+    async ({ includeCertificateDetails, verifyMatches }) => promptResult([
+      "Analyze the supplied PKCS#12/PFX data using PKI Studio MCP.",
+      "Use read_pkcs12 first and list contained private keys, public keys, certificates, labels, and counts.",
+      includeCertificateDetails === "true"
+        ? "Parse contained certificates with parse_certificate and summarize their subjects, issuers, validity, and extensions."
+        : "Parse contained certificates only when the user asks for certificate-level details.",
+      verifyMatches === "true"
+        ? "Use certificate_matches_key to check whether contained certificates match contained private keys or public keys."
+        : "Do not run extra matching checks unless the user asks for relationship verification.",
+      "Avoid exposing sensitive key bytes in the final answer unless the user explicitly requests exported material.",
+    ]),
+  );
+}
+
+function promptResult(lines: string[]) {
+  return {
+    messages: [
+      {
+        role: "user" as const,
+        content: {
+          type: "text" as const,
+          text: lines.join("\n"),
+        },
+      },
+    ],
+  };
 }
 
 async function main(): Promise<void> {
