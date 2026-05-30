@@ -32,6 +32,31 @@ See the Wiki for details:
 - [Testing](https://github.com/pkistudio/pkistudiomcp/wiki/Testing)
 - [Development](https://github.com/pkistudio/pkistudiomcp/wiki/Development)
 
+## What Can I Ask?
+
+- Parse this PEM certificate and summarize the issuer, subject, validity, extensions, and ASN.1 structure.
+- Show all OIDs found in this DER data and resolve their names.
+- Check whether this certificate matches this private key.
+- Read this PKCS#12/PFX file and list contained certificates and keys.
+- Generate a test key pair, CSR, or self-signed certificate.
+- Identify likely ASN.1 type definitions for this DER data.
+- Build DER from this ASN.1 definition and JSON instance.
+
+For a longer prompt list, see [Getting Started](https://github.com/pkistudio/pkistudiomcp/wiki/Getting-Started).
+
+## Tool Areas
+
+- Certificate inspection: `parse_certificate`, `parse_asn1`, `summarize_asn1`, `resolve_oid`.
+- DER / ASN.1 inspection: `parse_asn1`, `summarize_asn1`, `describe_node`, `extract_asn1_node`, `asn1_node_value`.
+- OID utilities: `encode_oid`, `decode_oid_value`, `resolve_oid`.
+- Key material: `recognize_key_material`, `generate_key_pair`, `verify_key_pair`, `certificate_matches_key`.
+- CSR and test certificates: `create_csr`, `create_self_signed_certificate`.
+- PKCS#12 / PFX: `read_pkcs12`, `write_pkcs12`.
+- ASN.1 Definition Sifter: `sift_asn1_definition_candidates`, `sift_pki_asn1_definition_candidates`.
+- ASN.1 Instance Builder: `parse_asn1_definition`, `validate_asn1_schema`, `validate_asn1_instance`, `create_asn1_instance`.
+
+For all purpose-to-tool mappings, see the [Tool Guide](https://github.com/pkistudio/pkistudiomcp/wiki/Tool-Guide).
+
 ## Install
 
 Run the stdio MCP server from npm:
@@ -80,15 +105,7 @@ Claude Desktop configuration:
 }
 ```
 
-Example assistant prompts:
-
-- Parse this PEM certificate and summarize the issuer, subject, validity, extensions, and ASN.1 structure.
-- Show all OIDs found in this DER data and resolve their names.
-- Check whether this certificate matches this private key.
-- Read this PKCS#12 file and list contained certificates and keys.
-- Identify likely ASN.1 type definitions for this DER data.
-
-For client-specific details, see [MCP Client Configuration](https://github.com/pkistudio/pkistudiomcp/wiki/MCP-Client-Configuration).
+After configuring your client, try one of the prompts in [What Can I Ask?](#what-can-i-ask). For client-specific details, see [MCP Client Configuration](https://github.com/pkistudio/pkistudiomcp/wiki/MCP-Client-Configuration).
 
 ## Docker
 
