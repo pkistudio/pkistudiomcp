@@ -4,6 +4,8 @@ PKI Studio MCP is a local MCP server for AI-assisted PKI, ASN.1, DER, PEM, X.509
 
 Documentation: https://github.com/pkistudio/pkistudiomcp/wiki
 
+Maintainer-facing design documentation: [docs/README.md](https://github.com/pkistudio/pkistudiomcp/blob/main/docs/README.md)
+
 Current version: 0.7.2
 
 The server is designed for local assistant workflows first. Certificate parsing, ASN.1 parsing, key recognition, and PKCS#12 processing run inside the MCP server process. Network fetching is limited to the explicit `fetch_certificate_network_resources` tool.
